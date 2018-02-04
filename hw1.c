@@ -42,7 +42,7 @@ typedef union
 
 
 
-}
+} PACKET;
 
 
 int main (int argc, char* argv[])
