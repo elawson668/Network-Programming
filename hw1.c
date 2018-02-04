@@ -9,6 +9,44 @@
 #include <stdlib.h>
 #include <arpa/inet.h>
 
+<<<<<<< HEAD
+=======
+typedef union 
+{
+
+  uint16_t opcode;
+
+  struct 
+  {
+    uint16_t opcode;
+    uint16_t data[514];
+  } request;
+
+  struct 
+  {
+    uint16_t opcode;
+    uint16_t block_num;
+    uint16_t data[512];
+  } data;
+
+  struct
+  {
+    uint16_t opcode;
+    uint16_t block_num;
+  } ack;
+
+  struct 
+  {
+    uint16_t opcode;
+    uint16_t err_code;
+    uint16_t message[512];
+  } error;
+
+
+
+} PACKET;
+
+>>>>>>> 194d26f59b46b45da07500875c9afe4fd2a73057
 
 int main (int argc, char* argv[])
 {
