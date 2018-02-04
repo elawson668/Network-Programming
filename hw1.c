@@ -9,6 +9,8 @@
 #include <stdlib.h>
 #include <arpa/inet.h>
 
+<<<<<<< HEAD
+=======
 typedef union 
 {
 
@@ -46,15 +48,16 @@ typedef union
 
 
 
+>>>>>>> 194d26f59b46b45da07500875c9afe4fd2a73057
 
 int main (int argc, char* argv[])
 {
 
-  int sd; 
-  struct sockaddr_in udpserver;
-  int length = sizeof(udpserver);
+int sd; 
+struct sockaddr_in udpserver;
+int length = sizeof(udpserver);
 
-  sd = socket( AF_INET, SOCK_DGRAM, 0 ); 
+sd = socket( AF_INET, SOCK_DGRAM, 0 ); 
 
   if ( sd < 0 )  
   {
@@ -62,12 +65,12 @@ int main (int argc, char* argv[])
     return EXIT_FAILURE;
   }
 
-  bzero(&udpserver, length);
-  udpserver.sin_family = AF_INET;
-  udpserver.sin_addr.s_addr = htonl(INADDR_ANY);
-  udpserver.sin_port = htons(0); 
+bzero(&udpserver, length);
+udpserver.sin_family = AF_INET;
+udpserver.sin_addr.s_addr = htonl(INADDR_ANY);
+udpserver.sin_port = htons(0); 
 
-  if ( bind( sd, (struct sockaddr *) &udpserver, length ) < 0 )
+if ( bind( sd, (struct sockaddr *) &udpserver, length ) < 0 )
   {
     perror( "bind() failed" );
     return EXIT_FAILURE;
@@ -83,35 +86,54 @@ int main (int argc, char* argv[])
   printf( "TFTP server assigned to port number %d\n", ntohs( udpserver.sin_port ) );
 
 
-  struct sockaddr_in client2;
-  int len2 = sizeof( client2 );
+ struct sockaddr_in client;
+  int leng = sizeof( client );
 
-  char buffer[500];
-  int k = recvfrom( sd, buffer, 500, 0, (struct sockaddr *) &client2,
-                  (socklen_t *) &len2 );
+int pid;
+while (1)
+{
 
-  printf("%d\n", k);
+	char buffer[1024];
+	int bytes_read = recvfrom( sd, buffer, 1024, 0, (struct sockaddr *) &client,
+                  (socklen_t *) &leng );
 
-  uint16_t opcode = buffer[0] + buffer[1];
+	
+	if (bytes_read > 0)
+	{
+
+	pid = fork();
+	
+	if (pid ==0)
+	{
+		printf("%d\n", bytes_read);
+
+		uint16_t opcode = buffer[0] + buffer[1];
+
+		printf("%d\n", opcode);
+
+		int i;
+		for (i=0; i < bytes_read; i++)
+		{
+			if (buffer[i] == '\0')
+			{
+			printf("\nnull terminator\n");
+			continue;
+			}
+		
+		printf("%c", buffer[i]);
+		}
+		printf("\n");
+	}
+
+	}
+	
+
+}
 
 
-  printf("%d\n", opcode);
-
-  int i;
-  for (i=2; i < k; i++)
-  {
-    if (buffer[i] == '\0')
-    {
-	    printf("\nnull terminator\n");
-	    continue;
-    }
-    printf("%c", buffer[i]);
-  }
 
 
 
-
-  printf("\n");
-  return 0;
+return 0;
 
 }
