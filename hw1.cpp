@@ -115,69 +115,62 @@ void handle_read_request(char* filename, int sd, struct sockaddr * client, sockl
 
 }
 
-/*
+
 void handle_write_request(char* filename, int sd, struct sockaddr * client, socklen_t* length)
 {	
 
-	char write_buf[512];
-	bzero(write_buf, 512);
+	FILE * file;
+	file = fopen(filename, "wb");
+
 	uint16_t block=1;
 	while (true)
 	{
-		int bytes_written = fread(written_buf, 1, 512, file_to_read);
-		printf("%d bytes written from file\n", bytes_read);
 
-		if (bytes_read < 512)
+		char packet[516];
+		int bytes_recieved = recvfrom(sd, packet, 516, 0, client, length);		
+		
+		if (bytes_recieved < 516)
 		{
-			printf("%d bytes left. This is last packet\n", bytes_read);
-			char last_pack[bytes_read+4];
-			bzero(last_pack, bytes_read);
-			char* last_ptr = last_pack;
-			uint16_t opcode = DATA;
-			opcode=htons(opcode);
-			block=htons(block);
-			memcpy(last_ptr, &opcode, sizeof(uint16_t));
-			last_ptr+=sizeof(uint16_t);
-			memcpy(last_ptr, &block, sizeof(uint16_t));
-			last_ptr+=sizeof(uint16_t);
-			memcpy(last_ptr, &read_buf, bytes_read);
-			sendto(sd, last_pack, sizeof(last_pack),0, client, *length);
+
+			char write_buf[bytes_recieved - 4];
+			bzero(write_buf,bytes_recieved - 4);
+			for(int i = 4; i < bytes_recieved; i++) {
+				write_buf[i - 4] = packet[i];
+			}
+
+			printf("%d bytes left. This is last packet\n", bytes_recieved);
+			fwrite(write_buf,sizeof(char),bytes_recieved - 4,file);
 	
 			break;
 		}
 
 		else
 		{
-			char packet[516];
-			char* data_packet = packet;
-			uint16_t opcode = DATA;
-			uint16_t bl=htons(block);
-			opcode=htons(opcode);
-			memcpy(data_packet, &opcode, sizeof(uint16_t));
-			data_packet+=sizeof(uint16_t);
-			memcpy(data_packet, &bl, sizeof(uint16_t));
-			data_packet+=(sizeof(uint16_t));
-			memcpy(data_packet, &read_buf, sizeof(read_buf));
-	
-			sendto(sd, packet, sizeof(packet),0, client, *length);
-	
+			
+			char write_buf[512];
+			bzero(write_buf,512);
+			for(int i = 4; i < 516; i++) {
+				write_buf[i - 4] = packet[i];
+			}
+			printf("%d bytes written to file\n", bytes_recieved);
+			fwrite(write_buf,sizeof(char),512,file);
 
 
 			char ack_packet[4];
-			recvfrom( sd, ack_packet, 4, 0, client, length );
-			uint16_t op = ACK;
-			uint16_t inopcode = ack_packet[0] + ack_packet[1];
-			uint16_t inblock =  ntohs(ack_packet[2]) + ntohs(ack_packet[3]);
-			printf("%u ", inblock);
-			if (inopcode == op)
-			{printf("YAY\n");}
+			uint16_t opcode = ACK;
+			uint16_t bl=htons(block);
+			opcode=htons(opcode);
+			memcpy(ack_packet, &opcode, sizeof(uint16_t));
+			memcpy(ack_packet, &bl, sizeof(uint16_t));
+			sendto(sd, ack_packet, sizeof(ack_packet),0, client, *length);
+
 			block++;
 		}
 
 	}
 	
 
-}*/
+}
 
 
  
@@ -270,7 +263,7 @@ int main (int argc, char* argv[])
 					if(buffer[i] == '\0')
 					{
 						writefile[i-2] = '\0';
-						//handle_write_request(writefile,sd,(struct sockaddr *) &client, (socklen_t *) &leng);
+						handle_write_request(writefile,sd,(struct sockaddr *) &client, (socklen_t *) &leng);
 						break;
 					}
 
