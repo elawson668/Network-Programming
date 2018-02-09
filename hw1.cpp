@@ -142,7 +142,7 @@ void handle_write_request(char* filename, int sd, struct sockaddr * client, sock
 		char packet[516];
 		int bytes_recieved = recvfrom(sd, packet, 516, 0, client, length);		
 		printf("%d bytes written to file\n", bytes_recieved);	
-			
+
 		if (bytes_recieved < 516)
 		{
 
