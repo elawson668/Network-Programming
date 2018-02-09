@@ -89,13 +89,23 @@ void handle_read_request(char* filename, int sd, struct sockaddr * client, sockl
 
 
 				char ack_packet[4];
+				
 				recvfrom( sd, ack_packet, 4, 0, client, length );
-				uint16_t op = ACK;
-				uint16_t inopcode = ack_packet[0] + ack_packet[1];
-				uint16_t inblock =  ntohs(ack_packet[2]) + ntohs(ack_packet[3]);
-				printf("%u ", inblock);
-				if (inopcode == op)
-				{printf("YAY\n");}
+				char ack_code[2];
+				char blockrecv[2];
+				ack_code[0] = ack_packet[0];
+				ack_code[1] = ack_packet[1];
+				blockrecv[0] = ack_packet[2];
+				blockrecv[1] = ack_packet[3];
+				uint16_t * ackcode_ptr = (uint16_t *) ack_code;
+				uint16_t ack = ntohs(*ackcode_ptr); 
+				uint16_t * blockrecvptr = (uint16_t *) blockrecv;
+				uint16_t b = ntohs(*blockrecvptr);
+				printf("%d %d \n", ack, b); 
+				
+				
+		
+				
 				block++;
 			}
 
