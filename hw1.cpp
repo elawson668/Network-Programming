@@ -10,6 +10,7 @@
 #include <arpa/inet.h>
 #include <string>
 #include "hw1.h"
+#include <iostream>
 
 using namespace std;
 
@@ -122,13 +123,26 @@ void handle_write_request(char* filename, int sd, struct sockaddr * client, sock
 	FILE * file;
 	file = fopen(filename, "wb");
 
-	uint16_t block=1;
+	uint16_t block=0;
+
+	char ack_packet[4];
+	bzero(ack_packet,4);
+	uint16_t opcode = ACK;
+	uint16_t bl=htons(block);
+	opcode=htons(opcode);
+	memcpy(ack_packet, &opcode, sizeof(uint16_t));
+	memcpy(ack_packet, &bl, sizeof(uint16_t));
+	sendto(sd, ack_packet, sizeof(ack_packet),0, client, *length);	
+	block++;
+
+
 	while (true)
 	{
 
 		char packet[516];
 		int bytes_recieved = recvfrom(sd, packet, 516, 0, client, length);		
-		
+		printf("%d bytes written to file\n", bytes_recieved);	
+			
 		if (bytes_recieved < 516)
 		{
 
@@ -137,6 +151,8 @@ void handle_write_request(char* filename, int sd, struct sockaddr * client, sock
 			for(int i = 4; i < bytes_recieved; i++) {
 				write_buf[i - 4] = packet[i];
 			}
+
+			cout << write_buf;
 
 			printf("%d bytes left. This is last packet\n", bytes_recieved);
 			fwrite(write_buf,sizeof(char),bytes_recieved - 4,file);
@@ -152,13 +168,12 @@ void handle_write_request(char* filename, int sd, struct sockaddr * client, sock
 			for(int i = 4; i < 516; i++) {
 				write_buf[i - 4] = packet[i];
 			}
-			printf("%d bytes written to file\n", bytes_recieved);
 			fwrite(write_buf,sizeof(char),512,file);
 
 
-			char ack_packet[4];
-			uint16_t opcode = ACK;
-			uint16_t bl=htons(block);
+			bzero(ack_packet,4);
+			opcode = ACK;
+			bl=htons(block);
 			opcode=htons(opcode);
 			memcpy(ack_packet, &opcode, sizeof(uint16_t));
 			memcpy(ack_packet, &bl, sizeof(uint16_t));
