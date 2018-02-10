@@ -30,10 +30,24 @@ void handle_alarm(int signum) {
 
 }
 
+void handle_error(uint16_t errcode, char* message) {
+
+	char packet[4+sizeof(message)];
+	char* pack_ptr = packet;
+    uint16_t eopcode = ERROR;
+	eopcode = htons(eopcode);
+	errcode = htons(errcode);
+	memcpy(pack_ptr, &eopcode, sizeof(uint16_t));
+	pack_ptr += sizeof(uint16_t);
+	memcpy(pack_ptr, &errcode, sizeof(uint16_t));
+	pack_ptr+=sizeof(uint16_t);
+	memcpy(pack_ptr, message, sizeof(message));
+	sendto(sd, packet, sizeof(packet),0, (struct sockaddr *) &client, leng);
+
+}
+
 void handle_read_request(char* filename, struct sockaddr * client, socklen_t* length)
 {	
-
-
 	
 	int sdchild = socket( AF_INET, SOCK_DGRAM, 0 ) ; 
 	struct sockaddr_in serverchild;
@@ -157,13 +171,6 @@ void handle_read_request(char* filename, struct sockaddr * client, socklen_t* le
 
 
 
-
-
-
-
-
-
-
 void handle_write_request(char* filename, struct sockaddr * client, socklen_t* length)
 {	
 
@@ -232,7 +239,7 @@ void handle_write_request(char* filename, struct sockaddr * client, socklen_t* l
 
 			printf("%d bytes left. This is last packet\n", bytes_recieved);
 			fwrite(write_buf,sizeof(char),bytes_recieved - 4,file);
-			
+
 			bzero(ack_packet,4);
 			ack_ptr = ack_packet;
 			opcode = ACK;
@@ -304,16 +311,16 @@ int main (int argc, char* argv[])
 	udpserver.sin_port = htons(0); 
 
 	if ( bind( sd, (struct sockaddr *) &udpserver, length ) < 0 )
-  {
-   	perror( "bind() failed" );
-   	return EXIT_FAILURE;
-  }
+  	{
+   		perror( "bind() failed" );
+   		return EXIT_FAILURE;
+  	}
 
 
-  if ( getsockname( sd, (struct sockaddr *) &udpserver, (socklen_t *) &length ) < 0 )
+  	if ( getsockname( sd, (struct sockaddr *) &udpserver, (socklen_t *) &length ) < 0 )
  	{
-   	perror( "getsockname() failed" );
-   	return EXIT_FAILURE;
+   		perror( "getsockname() failed" );
+   		return EXIT_FAILURE;
  	}
 
  	printf( "TFTP server assigned to port number %d\n", ntohs( udpserver.sin_port ) );
@@ -329,8 +336,6 @@ int main (int argc, char* argv[])
 	while (1)
 	{
 	
-		
-		
 		int bytes_read = recvfrom( sd, buffer, 1024, 0, (struct sockaddr *) &client,
                   (socklen_t *) &leng );
 
@@ -344,47 +349,30 @@ int main (int argc, char* argv[])
 			opcode = ntohs(*opcode_ptr);
 			if(opcode != RRQ && opcode != WRQ) 
 			{
-				char illegal[4+sizeof("ILLEGAL OPERATION")];
-				char* ill_ptr = illegal;
-            			uint16_t eopcode = ERROR;
-				uint16_t err_code= 4;
-				eopcode = htons(eopcode);
-				err_code = htons(err_code);
-				memcpy(ill_ptr, &eopcode, sizeof(uint16_t));
-				ill_ptr += sizeof(uint16_t);
-				memcpy(ill_ptr, &err_code, sizeof(uint16_t));
-				ill_ptr+=sizeof(uint16_t);
-				memcpy(ill_ptr, "ILLEGAL OPERATION", sizeof("ILLEGAL OPERATION"));
-				sendto(sd, illegal, sizeof(illegal),0, (struct sockaddr *) &client, leng);
-
+				char* message = "Illegal TFTP Operation"
+				uint16_t errcode= 4;
+				handle_error(errcode,message);
 			}
 
 			
 			else 
 			{
-            			if(fork() == 0) 
+            	if(fork() == 0) 
 				{
-                			/* Child - handle the request */
-                			close(sd);
-                			break;
-            			}
+                	/* Child - handle the request */
+                	close(sd);
+                	break;
+            	}
 
 			
-			    	else 
+			    else 
 				{
 				/* Parent - continue to wait */
-			    	}
+			    }
 			}
-            			
-
-			
-
+         
 		}
 	}
-
-
-
-
 
 	if (opcode == RRQ)
 	{ 
@@ -409,28 +397,28 @@ int main (int argc, char* argv[])
 		}
 	}
 
-			if (opcode == WRQ) 
+	if (opcode == WRQ) 
+	{
+
+		char writefile[1024];
+		for(int i=2; i < 1024; i++) 
+		{
+			if(buffer[i] == '\0')
 			{
-
-				char writefile[1024];
-				for(int i=2; i < 1024; i++) 
-				{
-					if(buffer[i] == '\0')
-					{
-						writefile[i-2] = '\0';
-						handle_write_request(writefile, (struct sockaddr *) &client, (socklen_t *) &leng);
-						break;
-					}
-
-					else
-					{
-						writefile[i-2] = buffer[i];
-					}
-
-
-				}
-
+				writefile[i-2] = '\0';
+				handle_write_request(writefile, (struct sockaddr *) &client, (socklen_t *) &leng);
+				break;
 			}
+
+			else
+			{
+				writefile[i-2] = buffer[i];
+			}
+
+
+		}
+
+	}
 
 
 
