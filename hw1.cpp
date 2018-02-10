@@ -11,6 +11,7 @@
 #include <string>
 #include "hw1.h"
 #include <iostream>
+#include <signal.h>
 using namespace std;
 
 #define RRQ 1
@@ -30,7 +31,7 @@ void handle_alarm(int signum) {
 
 }
 
-void handle_error(uint16_t errcode, char* message) {
+void handle_error(int sd, struct sockaddr * client, socklen_t* length, uint16_t errcode, string message) {
 
 	char packet[4+sizeof(message)];
 	char* pack_ptr = packet;
@@ -41,8 +42,8 @@ void handle_error(uint16_t errcode, char* message) {
 	pack_ptr += sizeof(uint16_t);
 	memcpy(pack_ptr, &errcode, sizeof(uint16_t));
 	pack_ptr+=sizeof(uint16_t);
-	memcpy(pack_ptr, message, sizeof(message));
-	sendto(sd, packet, sizeof(packet),0, (struct sockaddr *) &client, leng);
+	memcpy(pack_ptr, &message, sizeof(message));
+	sendto(sd, packet, sizeof(packet),0, (struct sockaddr *) client, *length);
 
 }
 
@@ -70,23 +71,13 @@ void handle_read_request(char* filename, struct sockaddr * client, socklen_t* le
    		
   	}
 
-
-	char no_file_err[4 + sizeof("FILE NOT FOUND")];
-	char* no_f_ptr = no_file_err;
 	FILE* file_to_read = fopen(filename, "r");
 	if (file_to_read == NULL) 
 	{	
-		uint16_t opcode = ERROR;
-		uint16_t err_code= 1;
-		opcode = htons(opcode);
-		err_code = htons(err_code);
-		memcpy(no_f_ptr, &opcode, sizeof(uint16_t));
-		no_f_ptr += sizeof(uint16_t);
-		memcpy(no_f_ptr, &err_code, sizeof(uint16_t));
-		no_f_ptr+=sizeof(uint16_t);
-		memcpy(no_f_ptr, "FILE NOT FOUND", sizeof("FILE NOT FOUND"));
-		sendto(sdchild, no_file_err, sizeof(no_file_err),0, client, *length);
 
+		uint16_t errcode= 1;
+		string message = "File Not Found";
+		handle_error(sdchild,client,length,errcode,message);
 					
 	}
 
@@ -349,9 +340,9 @@ int main (int argc, char* argv[])
 			opcode = ntohs(*opcode_ptr);
 			if(opcode != RRQ && opcode != WRQ) 
 			{
-				char* message = "Illegal TFTP Operation"
+				string message = "Illegal TFTP Operation";
 				uint16_t errcode= 4;
-				handle_error(errcode,message);
+				handle_error(sd,(struct sockaddr *) &client,(socklen_t *) &length,errcode,message);
 			}
 
 			
