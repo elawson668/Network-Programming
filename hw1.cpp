@@ -302,7 +302,7 @@ int main (int argc, char* argv[])
 	if ( sd < 0 )  
 	{
 		perror( "socket() failed" );
-    return EXIT_FAILURE;
+    	return EXIT_FAILURE;
 	}
 
 	bzero(&udpserver, length);
@@ -419,17 +419,6 @@ int main (int argc, char* argv[])
 		}
 
 	}
-
-
-
-
-
-
-
-
-
-
-
 
 
 
