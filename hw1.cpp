@@ -198,9 +198,9 @@ void handle_write_request(char* filename, struct sockaddr * client, socklen_t* l
 	uint16_t opcode = ACK;
 	uint16_t bl=htons(block);
 	opcode=htons(opcode);
-	memcpy(ack_packet, &opcode, sizeof(uint16_t));
+	memcpy(ack_ptr, &opcode, sizeof(uint16_t));
 	ack_ptr += sizeof(uint16_t);
-	memcpy(ack_packet, &bl, sizeof(uint16_t));
+	memcpy(ack_ptr, &bl, sizeof(uint16_t));
 	sendto(sdchild, ack_packet, sizeof(ack_packet),0, client, *length);	
 	block++;
 
@@ -236,9 +236,9 @@ void handle_write_request(char* filename, struct sockaddr * client, socklen_t* l
 			opcode = ACK;
 			bl=htons(block);
 			opcode=htons(opcode);
-			memcpy(ack_packet, &opcode, sizeof(uint16_t));
+			memcpy(ack_ptr, &opcode, sizeof(uint16_t));
 			ack_ptr += sizeof(uint16_t);
-			memcpy(ack_packet, &bl, sizeof(uint16_t));
+			memcpy(ack_ptr, &bl, sizeof(uint16_t));
 			sendto(sdchild, ack_packet, sizeof(ack_packet),0, client, *length);
 	
 			break;
@@ -260,9 +260,9 @@ void handle_write_request(char* filename, struct sockaddr * client, socklen_t* l
 			opcode = ACK;
 			bl=htons(block);
 			opcode=htons(opcode);
-			memcpy(ack_packet, &opcode, sizeof(uint16_t));
+			memcpy(ack_ptr, &opcode, sizeof(uint16_t));
 			ack_ptr += sizeof(uint16_t);
-			memcpy(ack_packet, &bl, sizeof(uint16_t));
+			memcpy(ack_ptr, &bl, sizeof(uint16_t));
 			sendto(sdchild, ack_packet, sizeof(ack_packet),0, client, *length);
 
 			block++;
