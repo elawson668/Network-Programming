@@ -19,6 +19,17 @@ using namespace std;
 #define ACK 4
 #define ERROR 5
 
+int timeouts = 0;
+
+void handle_alarm(int signum) {
+
+	timeouts++;
+	if(timeouts == 10) {
+		kill(getpid(),SIGTERM);
+	}
+
+}
+
 void handle_read_request(char* filename, struct sockaddr * client, socklen_t* length)
 {	
 
@@ -44,17 +55,6 @@ void handle_read_request(char* filename, struct sockaddr * client, socklen_t* le
    		perror( "bind() failed" );
    		
   	}
-
-
-
-
-
-
-
-
-
-
-
 
 
 	char no_file_err[4 + sizeof("FILE NOT FOUND")];
@@ -109,6 +109,8 @@ void handle_read_request(char* filename, struct sockaddr * client, socklen_t* le
 
 			else
 			{
+
+
 				char packet[516];
 				char* data_packet = packet;
 				uint16_t opcode = DATA;
@@ -120,13 +122,17 @@ void handle_read_request(char* filename, struct sockaddr * client, socklen_t* le
 				data_packet+=(sizeof(uint16_t));
 				memcpy(data_packet, &read_buf, sizeof(read_buf));
 	
+
 				sendto(sdchild, packet, sizeof(packet),0, client, *length);
 	
 
-
 				char ack_packet[4];
-				
+
+				alarm(1);
 				recvfrom(sdchild, ack_packet, 4, 0, client, length );
+				alarm(0); 
+				timeouts = 0;
+
 				char ack_code[2];
 				char blockrecv[2];
 				ack_code[0] = ack_packet[0];
@@ -139,8 +145,6 @@ void handle_read_request(char* filename, struct sockaddr * client, socklen_t* le
 				uint16_t b = ntohs(*blockrecvptr);
 				printf("%d %d \n", ack, b); 
 				
-				
-		
 				
 				block++;
 			}
@@ -162,11 +166,6 @@ void handle_read_request(char* filename, struct sockaddr * client, socklen_t* le
 
 void handle_write_request(char* filename, struct sockaddr * client, socklen_t* length)
 {	
-
-
-
-
-
 
 
 	int sdchild = socket( AF_INET, SOCK_DGRAM, 0 ) ; 
@@ -196,11 +195,13 @@ void handle_write_request(char* filename, struct sockaddr * client, socklen_t* l
 	uint16_t block=0;
 
 	char ack_packet[4];
+	char* ack_ptr = ack_packet;
 	bzero(ack_packet,4);
 	uint16_t opcode = ACK;
 	uint16_t bl=htons(block);
 	opcode=htons(opcode);
 	memcpy(ack_packet, &opcode, sizeof(uint16_t));
+	ack_ptr += sizeof(uint16_t);
 	memcpy(ack_packet, &bl, sizeof(uint16_t));
 	sendto(sdchild, ack_packet, sizeof(ack_packet),0, client, *length);	
 	block++;
@@ -210,7 +211,12 @@ void handle_write_request(char* filename, struct sockaddr * client, socklen_t* l
 	{
 
 		char packet[516];
-		int bytes_recieved = recvfrom(sdchild, packet, 516, 0, client, length);		
+
+		alarm(1);
+		int bytes_recieved = recvfrom(sdchild, packet, 516, 0, client, length);	
+		alarm(0);
+		timeouts = 0;
+
 		printf("%d bytes written to file\n", bytes_recieved);	
 			
 		if (bytes_recieved < 516)
@@ -226,6 +232,16 @@ void handle_write_request(char* filename, struct sockaddr * client, socklen_t* l
 
 			printf("%d bytes left. This is last packet\n", bytes_recieved);
 			fwrite(write_buf,sizeof(char),bytes_recieved - 4,file);
+			
+			bzero(ack_packet,4);
+			ack_ptr = ack_packet;
+			opcode = ACK;
+			bl=htons(block);
+			opcode=htons(opcode);
+			memcpy(ack_packet, &opcode, sizeof(uint16_t));
+			ack_ptr += sizeof(uint16_t);
+			memcpy(ack_packet, &bl, sizeof(uint16_t));
+			sendto(sdchild, ack_packet, sizeof(ack_packet),0, client, *length);
 	
 			break;
 		}
@@ -242,10 +258,12 @@ void handle_write_request(char* filename, struct sockaddr * client, socklen_t* l
 
 
 			bzero(ack_packet,4);
+			ack_ptr = ack_packet;
 			opcode = ACK;
 			bl=htons(block);
 			opcode=htons(opcode);
 			memcpy(ack_packet, &opcode, sizeof(uint16_t));
+			ack_ptr += sizeof(uint16_t);
 			memcpy(ack_packet, &bl, sizeof(uint16_t));
 			sendto(sdchild, ack_packet, sizeof(ack_packet),0, client, *length);
 
@@ -265,6 +283,8 @@ void handle_write_request(char* filename, struct sockaddr * client, socklen_t* l
  
 int main (int argc, char* argv[])
 {
+
+	signal(SIGALRM, handle_alarm);
 
 	int sd; 
 	struct sockaddr_in udpserver;
