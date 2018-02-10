@@ -11,7 +11,6 @@
 #include <string>
 #include "hw1.h"
 #include <iostream>
-
 using namespace std;
 
 #define RRQ 1
@@ -20,8 +19,44 @@ using namespace std;
 #define ACK 4
 #define ERROR 5
 
-void handle_read_request(char* filename, int sd, struct sockaddr * client, socklen_t* length)
+void handle_read_request(char* filename, struct sockaddr * client, socklen_t* length)
 {	
+
+
+	
+	int sdchild = socket( AF_INET, SOCK_DGRAM, 0 ) ; 
+	struct sockaddr_in serverchild;
+	int length_child = sizeof(serverchild);
+
+	if ( sdchild < 0 )  
+	{
+		perror( "socket() failed" );
+    		
+	}
+
+	bzero(&serverchild, length_child);
+	serverchild.sin_family = AF_INET;
+	serverchild.sin_addr.s_addr = htonl(INADDR_ANY);
+	serverchild.sin_port = htons(0); 
+
+	if ( bind( sdchild, (struct sockaddr *) &serverchild, length_child ) < 0 )
+ 	{
+   		perror( "bind() failed" );
+   		
+  	}
+
+
+
+
+
+
+
+
+
+
+
+
+
 	char no_file_err[4 + sizeof("FILE NOT FOUND")];
 	char* no_f_ptr = no_file_err;
 	FILE* file_to_read = fopen(filename, "r");
@@ -36,7 +71,7 @@ void handle_read_request(char* filename, int sd, struct sockaddr * client, sockl
 		memcpy(no_f_ptr, &err_code, sizeof(uint16_t));
 		no_f_ptr+=sizeof(uint16_t);
 		memcpy(no_f_ptr, "FILE NOT FOUND", sizeof("FILE NOT FOUND"));
-		sendto(sd, no_file_err, sizeof(no_file_err),0, client, *length);
+		sendto(sdchild, no_file_err, sizeof(no_file_err),0, client, *length);
 
 					
 	}
@@ -67,7 +102,7 @@ void handle_read_request(char* filename, int sd, struct sockaddr * client, sockl
 				memcpy(last_ptr, &block, sizeof(uint16_t));
 				last_ptr+=sizeof(uint16_t);
 				memcpy(last_ptr, &read_buf, bytes_read);
-				sendto(sd, last_pack, sizeof(last_pack),0, client, *length);
+				sendto(sdchild, last_pack, sizeof(last_pack),0, client, *length);
 	
 				break;
 			}
@@ -85,13 +120,13 @@ void handle_read_request(char* filename, int sd, struct sockaddr * client, sockl
 				data_packet+=(sizeof(uint16_t));
 				memcpy(data_packet, &read_buf, sizeof(read_buf));
 	
-				sendto(sd, packet, sizeof(packet),0, client, *length);
+				sendto(sdchild, packet, sizeof(packet),0, client, *length);
 	
 
 
 				char ack_packet[4];
 				
-				recvfrom( sd, ack_packet, 4, 0, client, length );
+				recvfrom(sdchild, ack_packet, 4, 0, client, length );
 				char ack_code[2];
 				char blockrecv[2];
 				ack_code[0] = ack_packet[0];
@@ -117,8 +152,43 @@ void handle_read_request(char* filename, int sd, struct sockaddr * client, sockl
 }
 
 
-void handle_write_request(char* filename, int sd, struct sockaddr * client, socklen_t* length)
+
+
+
+
+
+
+
+
+void handle_write_request(char* filename, struct sockaddr * client, socklen_t* length)
 {	
+
+
+
+
+
+
+
+	int sdchild = socket( AF_INET, SOCK_DGRAM, 0 ) ; 
+	struct sockaddr_in serverchild;
+	int length_child = sizeof(serverchild);
+
+	if ( sdchild < 0 )  
+	{
+		perror( "socket() failed" );
+    		
+	}
+
+	bzero(&serverchild, length_child);
+	serverchild.sin_family = AF_INET;
+	serverchild.sin_addr.s_addr = htonl(INADDR_ANY);
+	serverchild.sin_port = htons(0); 
+
+	if ( bind( sdchild, (struct sockaddr *) &serverchild, length_child ) < 0 )
+ 	{
+   		perror( "bind() failed" );
+   		
+  	}
 
 	FILE * file;
 	file = fopen(filename, "wb");
@@ -132,7 +202,7 @@ void handle_write_request(char* filename, int sd, struct sockaddr * client, sock
 	opcode=htons(opcode);
 	memcpy(ack_packet, &opcode, sizeof(uint16_t));
 	memcpy(ack_packet, &bl, sizeof(uint16_t));
-	sendto(sd, ack_packet, sizeof(ack_packet),0, client, *length);	
+	sendto(sdchild, ack_packet, sizeof(ack_packet),0, client, *length);	
 	block++;
 
 
@@ -140,7 +210,7 @@ void handle_write_request(char* filename, int sd, struct sockaddr * client, sock
 	{
 
 		char packet[516];
-		int bytes_recieved = recvfrom(sd, packet, 516, 0, client, length);		
+		int bytes_recieved = recvfrom(sdchild, packet, 516, 0, client, length);		
 		printf("%d bytes written to file\n", bytes_recieved);	
 			
 		if (bytes_recieved < 516)
@@ -177,7 +247,7 @@ void handle_write_request(char* filename, int sd, struct sockaddr * client, sock
 			opcode=htons(opcode);
 			memcpy(ack_packet, &opcode, sizeof(uint16_t));
 			memcpy(ack_packet, &bl, sizeof(uint16_t));
-			sendto(sd, ack_packet, sizeof(ack_packet),0, client, *length);
+			sendto(sdchild, ack_packet, sizeof(ack_packet),0, client, *length);
 
 			block++;
 		}
@@ -232,44 +302,94 @@ int main (int argc, char* argv[])
 	struct sockaddr_in client;
 	int leng = sizeof( client );
 
-	int pid;
+	char buffer[1024];
+	bzero(buffer,1024);
+	char codebuff[2];
+	uint16_t opcode;		
 	while (1)
 	{
 	
-		char buffer[1024];
-		bzero(buffer,1024);
+		
+		
 		int bytes_read = recvfrom( sd, buffer, 1024, 0, (struct sockaddr *) &client,
                   (socklen_t *) &leng );
 
 	
 		if (bytes_read > 0)
 		{
-
-			uint16_t opcode = buffer[0] + buffer[1];
-			if (opcode == 1)
-			{ 
 			
-				char readfile[1024];
-				for (int i=2; i < 1024; i++)
-				{
-					if (buffer[i] == '\0') 
-					{
+			codebuff[0] = buffer[0];
+			codebuff[1] = buffer[1];
+			uint16_t* opcode_ptr =  (uint16_t*) codebuff;
+			opcode = ntohs(*opcode_ptr);
+			if(opcode != RRQ && opcode != WRQ) 
+			{
+				char illegal[4+sizeof("ILLEGAL OPERATION")];
+				char* ill_ptr = illegal;
+            			uint16_t eopcode = ERROR;
+				uint16_t err_code= 4;
+				eopcode = htons(eopcode);
+				err_code = htons(err_code);
+				memcpy(ill_ptr, &eopcode, sizeof(uint16_t));
+				ill_ptr += sizeof(uint16_t);
+				memcpy(ill_ptr, &err_code, sizeof(uint16_t));
+				ill_ptr+=sizeof(uint16_t);
+				memcpy(ill_ptr, "ILLEGAL OPERATION", sizeof("ILLEGAL OPERATION"));
+				sendto(sd, illegal, sizeof(illegal),0, (struct sockaddr *) &client, leng);
 
-						readfile[i-2] = '\0';
-						handle_read_request(readfile, sd, (struct sockaddr *) &client, (socklen_t *) &leng);
-						break;
-
-					}	
-
-					else
-					{
-						readfile[i-2] = buffer[i];
-					}
-
-				}
 			}
 
-			if (opcode == 2) 
+			
+			else 
+			{
+            			if(fork() == 0) 
+				{
+                			/* Child - handle the request */
+                			close(sd);
+                			break;
+            			}
+
+			
+			    	else 
+				{
+				/* Parent - continue to wait */
+			    	}
+			}
+            			
+
+			
+
+		}
+	}
+
+
+
+
+
+	if (opcode == RRQ)
+	{ 
+			
+		char readfile[1024];
+		for (int i=2; i < 1024; i++)
+		{
+			if (buffer[i] == '\0') 
+			{
+
+				readfile[i-2] = '\0';
+				handle_read_request(readfile, (struct sockaddr *) &client, (socklen_t *) &leng);
+				break;
+
+			}	
+
+			else
+			{
+				readfile[i-2] = buffer[i];
+			}
+
+		}
+	}
+
+			if (opcode == WRQ) 
 			{
 
 				char writefile[1024];
@@ -278,7 +398,7 @@ int main (int argc, char* argv[])
 					if(buffer[i] == '\0')
 					{
 						writefile[i-2] = '\0';
-						handle_write_request(writefile,sd,(struct sockaddr *) &client, (socklen_t *) &leng);
+						handle_write_request(writefile, (struct sockaddr *) &client, (socklen_t *) &leng);
 						break;
 					}
 
@@ -291,8 +411,19 @@ int main (int argc, char* argv[])
 				}
 
 			}
-		}
-	}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 	return 0;
 
