@@ -23,6 +23,17 @@
 
 int count = 0;
 
+void sigchild(int signo)
+{
+	//standard code from Lecture 3 slides to guarantee child termination successfully
+	pid_t pid;
+	int stat;
+	while ((pid=waitpid(-1, &stat, WNOHANG)) >0)
+	{printf("%d child terminated\n", pid);}
+	return;
+}
+
+
 void handle_alarm(int signum) 
 {
 	printf("%d\n", count); count+=1;
@@ -350,6 +361,7 @@ int main (int argc, char* argv[])
 {
 	
 	signal(SIGALRM, handle_alarm);
+	signal(SIGCHLD, sigchild);
 	siginterrupt(SIGALRM, 1);
 	int sd; 
 	struct sockaddr_in udpserver;
