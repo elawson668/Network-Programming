@@ -203,6 +203,8 @@ void handle_read_request(char* filename, struct sockaddr * client, socklen_t* le
 
 	}	
 
+	fclose(file_to_read);
+
 }
 
 
@@ -347,6 +349,8 @@ void handle_write_request(char* filename, struct sockaddr * client, socklen_t* l
 		}
 
 	}
+
+	fclose(file);
 	
 
 }
@@ -508,7 +512,7 @@ int main (int argc, char* argv[])
 
 
 
-
+	close(sd);
 	return 0;
 
 }
