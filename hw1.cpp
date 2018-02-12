@@ -13,6 +13,7 @@
 #include "hw1.h"
 #include <iostream>
 #include <signal.h>
+#include <wait.h>
 
 #define RRQ 1
 #define WRQ 2
@@ -33,13 +34,13 @@ void sigchild(int signo)
 	return;
 }
 
-
+// Increment count for timeout
 void handle_alarm(int signum) 
 {
 	printf("%d\n", count); count+=1;
 }
 
-
+// Create error packet and send to client
 void handle_error(int sd, struct sockaddr * client, socklen_t* length, uint16_t errcode, std::string message) {
 
 	char packet[4+sizeof(message)];
@@ -59,9 +60,8 @@ void handle_error(int sd, struct sockaddr * client, socklen_t* length, uint16_t 
 
 void handle_read_request(char* filename, struct sockaddr * client, socklen_t* length)
 {	
-
-
 	
+	// Open new socket for child process
 	int sdchild = socket( AF_INET, SOCK_DGRAM, 0 ) ; 
 	struct sockaddr_in serverchild;
 	int length_child = sizeof(serverchild);
@@ -83,13 +83,10 @@ void handle_read_request(char* filename, struct sockaddr * client, socklen_t* le
    		
   	}
 
-
-
+  	// Open file requested by client
 	FILE* file_to_read = fopen(filename, "rb");
 
-
-
-	
+	// Check for errors
 	if (file_to_read == NULL) 
 	{	
 		if(errno == ENOENT)
@@ -100,7 +97,6 @@ void handle_read_request(char* filename, struct sockaddr * client, socklen_t* le
 			handle_error(sdchild,client,length,err_code,message);
 		}
 
-
 		else if(access(filename, R_OK) != 0){
 
 			uint16_t err_code= 2;
@@ -108,12 +104,8 @@ void handle_read_request(char* filename, struct sockaddr * client, socklen_t* le
 			handle_error(sdchild,client,length,err_code,message);
 
 		}
-
-					
+			
 	}
-
-
-	
 
 	
 	else
@@ -122,11 +114,16 @@ void handle_read_request(char* filename, struct sockaddr * client, socklen_t* le
 		char read_buf[512];
 		bzero(read_buf, 512);
 		uint16_t block=1;
+
 		while (true)
 		{
+			// Read bytes from file
 			int bytes_read = fread(read_buf, 1, 512, file_to_read);
 			printf("%d bytes read from file\n", bytes_read);
+
 			resend:
+
+			// Send last DATA packet of file to client
 			if (bytes_read < 512)
 			{
 				printf("%d bytes left. This is last packet\n", bytes_read);
@@ -148,6 +145,7 @@ void handle_read_request(char* filename, struct sockaddr * client, socklen_t* le
 
 			else
 			{
+				// Send DATA packet of 512 bytes to client
 				char packet[516];
 				char* data_packet = packet;
 				uint16_t opcode = DATA;
@@ -159,14 +157,16 @@ void handle_read_request(char* filename, struct sockaddr * client, socklen_t* le
 				data_packet+=(sizeof(uint16_t));
 				memcpy(data_packet, &read_buf, sizeof(read_buf));
 				
-		
 				sendto(sdchild, packet, sizeof(packet),0, client, *length);
 				
-
 				get_right_ack:
+
+				// Check for timeout
 				char ack_packet[4];
 				alarm(1);
 				if (count ==10) {printf("DROPPED\n"); break;}
+
+				// Recieve ACK packet from client
 				int bytes_rec= recvfrom(sdchild, ack_packet, 4, 0, client, length );
 				
 				if (bytes_rec < 0)
@@ -178,7 +178,7 @@ void handle_read_request(char* filename, struct sockaddr * client, socklen_t* le
 
 				alarm(0);
 				count=0;
-				
+			
 				char ack_code[2];
 				char blockrecv[2];
 				ack_code[0] = ack_packet[0];
@@ -190,11 +190,10 @@ void handle_read_request(char* filename, struct sockaddr * client, socklen_t* le
 				uint16_t * blockrecvptr = (uint16_t *) blockrecv;
 				uint16_t b = ntohs(*blockrecvptr);
 				
+				// Check for Sorcerer's Apprentice bug
 				if (ack==ACK && b==block){}
 				else{ goto get_right_ack;}
 				
-				
-		
 				
 				block++;
 			}
@@ -208,23 +207,10 @@ void handle_read_request(char* filename, struct sockaddr * client, socklen_t* le
 }
 
 
-
-
-
-
-
-
-
-
 void handle_write_request(char* filename, struct sockaddr * client, socklen_t* length)
 {	
 
-
-
-
-
-
-
+	// Open new socket for child process
 	int sdchild = socket( AF_INET, SOCK_DGRAM, 0 ) ; 
 	struct sockaddr_in serverchild;
 	int length_child = sizeof(serverchild);
@@ -248,6 +234,7 @@ void handle_write_request(char* filename, struct sockaddr * client, socklen_t* l
 
 	FILE * file;
 
+	// Check if file already exists
 	if(access(filename, F_OK) == 0)
 	{
 		uint16_t err_code= 6;
@@ -258,12 +245,11 @@ void handle_write_request(char* filename, struct sockaddr * client, socklen_t* l
 
 	}
 
-
-
-
-
 	file = fopen(filename, "wb");
+
 	resend_data:
+
+	// Send inital ACK packet to client
 	uint16_t block=0;
 	char ack_packet[4];
 	char* ack_ptr = ack_packet;
@@ -283,7 +269,10 @@ void handle_write_request(char* filename, struct sockaddr * client, socklen_t* l
 
 		char packet[516];
 		alarm(1);
+		// Check for timeout
 		if (count ==10) {printf("DROPPED\n"); break;}
+
+		// Recieve DATA packet of 512 bytes from client
 		int bytes_recieved = recvfrom(sdchild, packet, 516, 0, client, length);	
 		if (bytes_recieved < 0){
 			if(errno == EINTR) goto resend_data;
@@ -294,22 +283,21 @@ void handle_write_request(char* filename, struct sockaddr * client, socklen_t* l
 		count=0;	
 		printf("%d bytes written to file\n", bytes_recieved);	
 			
+		// If last packet
 		if (bytes_recieved < 516)
 		{
 
+			// Write final bytes to file
 			char write_buf[bytes_recieved - 4];
 			bzero(write_buf,bytes_recieved - 4);
 			for(int i = 4; i < bytes_recieved; i++) {
 				write_buf[i - 4] = packet[i];
 			}
 
-			
-
 			printf("%d bytes left. This is last packet\n", bytes_recieved);
 			fwrite(write_buf,sizeof(char),bytes_recieved - 4,file);
 
-
-
+			// Send final ACK packet
 			bzero(ack_packet,4);
 			ack_ptr=ack_packet;
 			opcode = ACK;
@@ -327,6 +315,7 @@ void handle_write_request(char* filename, struct sockaddr * client, socklen_t* l
 		else
 		{
 			
+			// Write 512 bytes to file
 			char write_buf[512];
 			bzero(write_buf,512);
 			for(int i = 4; i < 516; i++) {
@@ -334,7 +323,7 @@ void handle_write_request(char* filename, struct sockaddr * client, socklen_t* l
 			}
 			fwrite(write_buf,sizeof(char),512,file);
 
-
+			// Send ACK packet to client
 			bzero(ack_packet,4);
 			ack_ptr=ack_packet;
 			opcode = ACK;
@@ -352,15 +341,9 @@ void handle_write_request(char* filename, struct sockaddr * client, socklen_t* l
 
 	fclose(file);
 	
-
 }
 
 
- 
-
- 
- 
- 
 int main (int argc, char* argv[])
 {
 	
@@ -412,6 +395,7 @@ int main (int argc, char* argv[])
 	
 	intr_send:
 		
+		// Recieve request packet from client 
 		int bytes_read = recvfrom( sd, buffer, 1024, 0, (struct sockaddr *) &client,
                   (socklen_t *) &leng );
 		if(bytes_read < 0) 
@@ -428,6 +412,8 @@ int main (int argc, char* argv[])
 			codebuff[1] = buffer[1];
 			uint16_t* opcode_ptr =  (uint16_t*) codebuff;
 			opcode = ntohs(*opcode_ptr);
+
+			// Check for illegal TFTP operation
 			if(opcode != RRQ && opcode != WRQ) 
 			{
 
@@ -437,9 +423,9 @@ int main (int argc, char* argv[])
 
 			}
 
-			
 			else 
 			{
+				// Create new process for each connection
             	if(fork() == 0) 
 				{
                 	/* Child - handle the request */
@@ -453,17 +439,11 @@ int main (int argc, char* argv[])
 				/* Parent - continue to wait */
 			    }
 			}
-            			
-
-			
 
 		}
 	}
 
-
-
-
-
+	// Read request
 	if (opcode == RRQ)
 	{ 
 			
@@ -487,6 +467,7 @@ int main (int argc, char* argv[])
 		}
 	}
 
+	// Write request
 	if (opcode == WRQ) 
 	{
 
@@ -509,8 +490,6 @@ int main (int argc, char* argv[])
 		}
 
 	}
-
-
 
 	close(sd);
 	return 0;
