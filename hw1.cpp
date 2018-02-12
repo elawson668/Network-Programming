@@ -4,7 +4,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdio.h>
-#include <error.h>
 #include <errno.h>
 #include <unistd.h>
 #include <string.h>
@@ -14,7 +13,6 @@
 #include "hw1.h"
 #include <iostream>
 #include <signal.h>
-using namespace std;
 
 #define RRQ 1
 #define WRQ 2
@@ -23,9 +21,29 @@ using namespace std;
 #define ERROR 5
 
 
-int count=0;
+int count = 0;
 
-void handle_alarm(int signum) {printf("%d\n", count); count+=1;}
+void handle_alarm(int signum) 
+{
+	printf("%d\n", count); count+=1;
+}
+
+
+void handle_error(int sd, struct sockaddr * client, socklen_t* length, uint16_t errcode, std::string message) {
+
+	char packet[4+sizeof(message)];
+	char* pack_ptr = packet;
+    uint16_t eopcode = ERROR;
+	eopcode = htons(eopcode);
+	errcode = htons(errcode);
+	memcpy(pack_ptr, &eopcode, sizeof(uint16_t));
+	pack_ptr += sizeof(uint16_t);
+	memcpy(pack_ptr, &errcode, sizeof(uint16_t));
+	pack_ptr+=sizeof(uint16_t);
+	memcpy(pack_ptr, &message, sizeof(message));
+	sendto(sd, packet, sizeof(packet),0, (struct sockaddr *) client, *length);
+
+}
 
 
 void handle_read_request(char* filename, struct sockaddr * client, socklen_t* length)
@@ -59,8 +77,6 @@ void handle_read_request(char* filename, struct sockaddr * client, socklen_t* le
 
 
 
-	char no_file_err[4 + sizeof("FILE NOT FOUND")];
-	char* no_f_ptr = no_file_err;
 	FILE* file_to_read = fopen(filename, "rb");
 
 
@@ -69,35 +85,19 @@ void handle_read_request(char* filename, struct sockaddr * client, socklen_t* le
 	if (file_to_read == NULL) 
 	{	
 		if(errno == ENOENT)
-		{uint16_t opcode = ERROR;
-		uint16_t err_code= 1;
-		opcode = htons(opcode);
-		err_code = htons(err_code);
-		memcpy(no_f_ptr, &opcode, sizeof(uint16_t));
-		no_f_ptr += sizeof(uint16_t);
-		memcpy(no_f_ptr, &err_code, sizeof(uint16_t));
-		no_f_ptr+=sizeof(uint16_t);
-		memcpy(no_f_ptr, "FILE NOT FOUND", sizeof("FILE NOT FOUND"));
-		sendto(sdchild, no_file_err, sizeof(no_file_err),0, client, *length);}
+		{
+
+			uint16_t err_code= 1;
+			std::string message = "FILE NOT FOUND";
+			handle_error(sdchild,client,length,err_code,message);
+		}
 
 
 		else if(access(filename, R_OK) != 0){
 
-		char err[4+sizeof( "ACCESS VIOLATION")];
-		char * errptr = err;
-		uint16_t opcode = ERROR;
-		uint16_t err_code= 2;
-		opcode = htons(opcode);
-		err_code = htons(err_code);
-		memcpy(errptr, &opcode, sizeof(uint16_t));
-		errptr += sizeof(uint16_t);
-		memcpy(errptr, &err_code, sizeof(uint16_t));
-		errptr+=sizeof(uint16_t);
-		memcpy(errptr, "ACCESS VIOLATION", sizeof("ACCESS VIOLATION"));
-		sendto(sdchild, err, sizeof(err),0, client, *length);
-
-
-
+			uint16_t err_code= 2;
+			std::string message = "ACCESS VIOLATION";
+			handle_error(sdchild,client,length,err_code,message);
 
 		}
 
@@ -238,19 +238,9 @@ void handle_write_request(char* filename, struct sockaddr * client, socklen_t* l
 
 	if(access(filename, F_OK) == 0)
 	{
-
-		char already[4+sizeof("FILE ALREADY EXISTS")];
-		char* aptr = already;
-		uint16_t opcode = ERROR;
 		uint16_t err_code= 6;
-		opcode = htons(opcode);
-		err_code = htons(err_code);
-		memcpy(aptr, &opcode, sizeof(uint16_t));
-		aptr += sizeof(uint16_t);
-		memcpy(aptr, &err_code, sizeof(uint16_t));
-		aptr+=sizeof(uint16_t);
-		memcpy(aptr, "FILE ALREADY EXISTS", sizeof("FILE ALREADY EXISTS"));
-		sendto(sdchild, already, sizeof(already),0, client, *length);
+		std::string message = "FILE ALREADY EXISTS";
+		handle_error(sdchild,client,length,err_code,message);
 		return;
 
 
@@ -370,7 +360,7 @@ int main (int argc, char* argv[])
 	if ( sd < 0 )  
 	{
 		perror( "socket() failed" );
-    		return EXIT_FAILURE;
+    	return EXIT_FAILURE;
 	}
 
 	bzero(&udpserver, length);
@@ -413,7 +403,7 @@ int main (int argc, char* argv[])
             		if(errno == EINTR) goto intr_send;
             		perror("recvfrom");
             		exit(-1);
-        	}
+        }
 		
 		if (bytes_read > 0)
 		{
@@ -424,36 +414,28 @@ int main (int argc, char* argv[])
 			opcode = ntohs(*opcode_ptr);
 			if(opcode != RRQ && opcode != WRQ) 
 			{
-				char illegal[4+sizeof("ILLEGAL OPERATION")];
-				char* ill_ptr = illegal;
-            			uint16_t eopcode = ERROR;
+
 				uint16_t err_code= 4;
-				eopcode = htons(eopcode);
-				err_code = htons(err_code);
-				memcpy(ill_ptr, &eopcode, sizeof(uint16_t));
-				ill_ptr += sizeof(uint16_t);
-				memcpy(ill_ptr, &err_code, sizeof(uint16_t));
-				ill_ptr+=sizeof(uint16_t);
-				memcpy(ill_ptr, "ILLEGAL OPERATION", sizeof("ILLEGAL OPERATION"));
-				sendto(sd, illegal, sizeof(illegal),0, (struct sockaddr *) &client, leng);
+				std::string message = "ILLEGAL TFTP OPERATION";
+				handle_error(sd,(struct sockaddr *) &client,(socklen_t *) &length,err_code,message);
 
 			}
 
 			
 			else 
 			{
-            			if(fork() == 0) 
+            	if(fork() == 0) 
 				{
-                			/* Child - handle the request */
-                			close(sd);
-                			break;
-            			}
+                	/* Child - handle the request */
+                	close(sd);
+                	break;
+            	}
 
 			
-			    	else 
+			    else 
 				{
 				/* Parent - continue to wait */
-			    	}
+			    }
 			}
             			
 
@@ -489,38 +471,28 @@ int main (int argc, char* argv[])
 		}
 	}
 
-			if (opcode == WRQ) 
+	if (opcode == WRQ) 
+	{
+
+		char writefile[1024];
+		for(int i=2; i < 1024; i++) 
+		{
+			if(buffer[i] == '\0')
 			{
+				writefile[i-2] = '\0';
+				handle_write_request(writefile, (struct sockaddr *) &client, (socklen_t *) &leng);
+				break;
+			}
 
-				char writefile[1024];
-				for(int i=2; i < 1024; i++) 
-				{
-					if(buffer[i] == '\0')
-					{
-						writefile[i-2] = '\0';
-						handle_write_request(writefile, (struct sockaddr *) &client, (socklen_t *) &leng);
-						break;
-					}
-
-					else
-					{
-						writefile[i-2] = buffer[i];
-					}
-
-
-				}
-
+			else
+			{
+				writefile[i-2] = buffer[i];
 			}
 
 
+		}
 
-
-
-
-
-
-
-
+	}
 
 
 
