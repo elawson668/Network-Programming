@@ -13,7 +13,7 @@
 #include "hw1.h"
 #include <iostream>
 #include <signal.h>
-#include <wait.h>
+#include <sys/wait.h>
 
 #define RRQ 1
 #define WRQ 2
@@ -274,11 +274,13 @@ void handle_write_request(char* filename, struct sockaddr * client, socklen_t* l
 
 		// Recieve DATA packet of 512 bytes from client
 		int bytes_recieved = recvfrom(sdchild, packet, 516, 0, client, length);	
+
 		if (bytes_recieved < 0){
 			if(errno == EINTR) goto resend_data;
             perror("recvfrom");
             exit(-1);
         }
+
 		alarm(0);
 		count=0;	
 		printf("%d bytes written to file\n", bytes_recieved);	
