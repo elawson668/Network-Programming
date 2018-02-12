@@ -74,9 +74,6 @@ void handle_read_request(char* filename, struct sockaddr * client, socklen_t* le
 
 
 
-
-
-
 	FILE* file_to_read = fopen(filename, "rb");
 
 
@@ -161,10 +158,12 @@ void handle_read_request(char* filename, struct sockaddr * client, socklen_t* le
 				if (count ==10) {printf("DROPPED\n"); break;}
 				int bytes_rec= recvfrom(sdchild, ack_packet, 4, 0, client, length );
 				
-				if (bytes_rec < 0){
-				if(errno == EINTR) goto resend;
-            			perror("recvfrom");
-            			exit(-1);}
+				if (bytes_rec < 0)
+				{
+					if(errno == EINTR) goto resend;
+            		perror("recvfrom");
+            		exit(-1);
+            	}
 
 				alarm(0);
 				count=0;
@@ -181,7 +180,7 @@ void handle_read_request(char* filename, struct sockaddr * client, socklen_t* le
 				uint16_t b = ntohs(*blockrecvptr);
 				
 				if (ack==ACK && b==block){}
-				else{ printf("%d %d\n", ack, b); goto get_right_ack;}
+				else{ goto get_right_ack;}
 				
 				
 		
@@ -274,9 +273,10 @@ void handle_write_request(char* filename, struct sockaddr * client, socklen_t* l
 		if (count ==10) {printf("DROPPED\n"); break;}
 		int bytes_recieved = recvfrom(sdchild, packet, 516, 0, client, length);	
 		if (bytes_recieved < 0){
-		if(errno == EINTR) goto resend_data;
-            	perror("recvfrom");
-            	exit(-1);}
+			if(errno == EINTR) goto resend_data;
+            perror("recvfrom");
+            exit(-1);
+        }
 		alarm(0);
 		count=0;	
 		printf("%d bytes written to file\n", bytes_recieved);	
@@ -400,9 +400,9 @@ int main (int argc, char* argv[])
                   (socklen_t *) &leng );
 		if(bytes_read < 0) 
 		{
-            		if(errno == EINTR) goto intr_send;
-            		perror("recvfrom");
-            		exit(-1);
+            if(errno == EINTR) goto intr_send;
+            perror("recvfrom");
+            exit(-1);
         }
 		
 		if (bytes_read > 0)
