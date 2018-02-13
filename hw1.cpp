@@ -40,6 +40,7 @@ void handle_alarm(int signum)
 	printf("%d\n", count); count+=1;
 }
 
+/*
 // Create error packet and send to client
 void handle_error(int sd, struct sockaddr * client, socklen_t* length, uint16_t errcode, std::string message) {
 
@@ -56,6 +57,7 @@ void handle_error(int sd, struct sockaddr * client, socklen_t* length, uint16_t 
 	sendto(sd, packet, sizeof(packet),0, (struct sockaddr *) client, *length);
 
 }
+*/
 
 
 void handle_read_request(char* filename, struct sockaddr * client, socklen_t* length)
@@ -92,17 +94,46 @@ void handle_read_request(char* filename, struct sockaddr * client, socklen_t* le
 		if(errno == ENOENT)
 		{
 
+			char no_file_err[4 + sizeof("FILE NOT FOUND")];
+			char* no_f_ptr = no_file_err;
+			uint16_t opcode = ERROR;
+			uint16_t err_code= 1;
+			opcode = htons(opcode);
+			err_code = htons(err_code);
+			memcpy(no_f_ptr, &opcode, sizeof(uint16_t));
+			no_f_ptr += sizeof(uint16_t);
+			memcpy(no_f_ptr, &err_code, sizeof(uint16_t));
+			no_f_ptr+=sizeof(uint16_t);
+			memcpy(no_f_ptr, "FILE NOT FOUND", sizeof("FILE NOT FOUND"));
+			sendto(sdchild, no_file_err, sizeof(no_file_err),0, client, *length);}
+
+			/*
 			uint16_t err_code= 1;
 			std::string message = "FILE NOT FOUND";
 			handle_error(sdchild,client,length,err_code,message);
+			*/
 		}
 
 		else if(access(filename, R_OK) != 0){
 
+			char err[4+sizeof( "ACCESS VIOLATION")];
+			char * errptr = err;
+			uint16_t opcode = ERROR;
+			uint16_t err_code= 2;
+			opcode = htons(opcode);
+			err_code = htons(err_code);
+			memcpy(errptr, &opcode, sizeof(uint16_t));
+			errptr += sizeof(uint16_t);
+			memcpy(errptr, &err_code, sizeof(uint16_t));
+			errptr+=sizeof(uint16_t);
+			memcpy(errptr, "ACCESS VIOLATION", sizeof("ACCESS VIOLATION"));
+			sendto(sdchild, err, sizeof(err),0, client, *length);
+
+			/*
 			uint16_t err_code= 2;
 			std::string message = "ACCESS VIOLATION";
 			handle_error(sdchild,client,length,err_code,message);
-
+			*/
 		}
 			
 	}
@@ -178,6 +209,8 @@ void handle_read_request(char* filename, struct sockaddr * client, socklen_t* le
 
 				alarm(0);
 				count=0;
+
+				if(serverchild.sin_port == )
 			
 				char ack_code[2];
 				char blockrecv[2];
@@ -237,11 +270,28 @@ void handle_write_request(char* filename, struct sockaddr * client, socklen_t* l
 	// Check if file already exists
 	if(access(filename, F_OK) == 0)
 	{
+
+		char already[4+sizeof("FILE ALREADY EXISTS")];
+		char* aptr = already;
+		uint16_t opcode = ERROR;
+		uint16_t err_code= 6;
+		opcode = htons(opcode);
+		err_code = htons(err_code);
+		memcpy(aptr, &opcode, sizeof(uint16_t));
+		aptr += sizeof(uint16_t);
+		memcpy(aptr, &err_code, sizeof(uint16_t));
+		aptr+=sizeof(uint16_t);
+		memcpy(aptr, "FILE ALREADY EXISTS", sizeof("FILE ALREADY EXISTS"));
+		sendto(sdchild, already, sizeof(already),0, client, *length);
+		return;
+
+
+		/*
 		uint16_t err_code= 6;
 		std::string message = "FILE ALREADY EXISTS";
 		handle_error(sdchild,client,length,err_code,message);
 		return;
-
+		*/
 
 	}
 
@@ -419,9 +469,24 @@ int main (int argc, char* argv[])
 			if(opcode != RRQ && opcode != WRQ) 
 			{
 
+				char illegal[4+sizeof("ILLEGAL OPERATION")];
+				char* ill_ptr = illegal;
+            			uint16_t eopcode = ERROR;
+				uint16_t err_code= 4;
+				eopcode = htons(eopcode);
+				err_code = htons(err_code);
+				memcpy(ill_ptr, &eopcode, sizeof(uint16_t));
+				ill_ptr += sizeof(uint16_t);
+				memcpy(ill_ptr, &err_code, sizeof(uint16_t));
+				ill_ptr+=sizeof(uint16_t);
+				memcpy(ill_ptr, "ILLEGAL OPERATION", sizeof("ILLEGAL OPERATION"));
+				sendto(sd, illegal, sizeof(illegal),0, (struct sockaddr *) &client, leng);				
+
+				/*
 				uint16_t err_code= 4;
 				std::string message = "ILLEGAL TFTP OPERATION";
 				handle_error(sd,(struct sockaddr *) &client,(socklen_t *) &length,err_code,message);
+				*/
 
 			}
 
