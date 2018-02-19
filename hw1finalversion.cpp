@@ -221,9 +221,9 @@ void handle_read_request(char* filename, struct sockaddr * client, socklen_t* le
 				if (bytes_rec < 0)
 				{
 					if(errno == EINTR) goto resend; //SIGALRM or system interrupt means we try to resend data
-            			perror("recvfrom");
-            			exit(-1);
-            			}
+            		perror("recvfrom");
+            		exit(-1);
+            	}
 
 				alarm(0); //recvfrom worked, cancel the alarm
 				count=0; //resent timeout count to 0
@@ -393,9 +393,9 @@ void handle_write_request(char* filename, struct sockaddr * client, socklen_t* l
 
 		if (bytes_recieved < 0){
 			if(errno == EINTR) goto resend_data; //either SIGALRM got thrown or system was interrupted, either way, wait for the packet again
-           		 perror("recvfrom");
-           		 exit(-1);
-        	}
+           	perror("recvfrom");
+           	exit(-1);
+        }
 
 		alarm(0); //we successfully got data, reset counter, cancel alarm
 		count=0;
