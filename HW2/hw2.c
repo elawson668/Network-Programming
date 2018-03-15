@@ -13,12 +13,180 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/select.h>
+#include <pthread.h>
 
 #define LONG_TIME 100000000
 
 static volatile int stopNow = 0;
 static volatile int timeOut = LONG_TIME;
 DNSServiceErrorType err;
+pthread_mutex_t mutex=PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex2=PTHREAD_MUTEX_INITIALIZER;
+
+int clients_fd[2];
+char player1[128];
+char player2[128];
+char choice1[8];
+char choice2[8];
+int client1flag=0;
+int client2flag=0;
+
+
+/*
+	else if (sd2 == -1)
+	{	
+		pthread_mutex_lock(&mutex);
+		clients_fd[1] = connection_sd; 
+		pthread_mutex_unlock(&mutex);
+
+		send(connection_sd, "CLIENT 1 SET\n", sizeof("CLIENT 1 SET\n"), 0);
+		send(connection_sd, "What is your name?\n", sizeof("What is your name?\n"), 0);
+		int p2namebytes = recv(connection_sd, player2, 128, 0);
+		player2[p2namebytes] = '\0';
+		send(connection_sd, "Rock, paper, or scissors?\n", sizeof("Rock, paper, or scissors?\n"), 0);
+		int choice2bytes = recv(connection_sd, choice2, 9, 0);
+		choice2[choice2bytes] = '\0';
+		free(arg);
+
+	}
+
+				
+	else
+	{
+		send(connection_sd,"MAX NUMBER OF CONNECTIONS MADE: DISCONNECTING\n", sizeof("MAX NUMBER OF CONNECTIONS MADE: DISCONNECTING\n"), 0);
+		close(connection_sd);
+		free(arg);
+		
+
+	}	
+*/
+
+
+
+void* client_handler1( void* arg)
+{
+
+	int connection_sd=*(int*)arg;
+
+
+	pthread_mutex_lock(&mutex);
+	clients_fd[0] = connection_sd; 
+	pthread_mutex_unlock(&mutex);
+
+
+
+	send(connection_sd, "CLIENT 0 SET\n", sizeof("CLIENT 0 SET\n"), 0);
+	send(connection_sd, "What is your name?\n", sizeof("What is your name?\n"), 0);
+	int p1namebytes = recv(connection_sd, player1, 128, 0);
+	if (p1namebytes == 0) 
+	{
+		pthread_mutex_lock(&mutex);
+		printf("EARLY DISCONNECT\n"); 
+		clients_fd[0]=-1;
+		pthread_mutex_unlock(&mutex);
+		return;
+	}
+	player1[p1namebytes] = '\0';
+	send(connection_sd, "Rock, paper, or scissors?\n", sizeof("Rock, paper, or scissors?\n"), 0);
+	int choice1bytes = recv(connection_sd, choice1, 9, 0);
+	if(choice1bytes == 0) 
+	{	
+		pthread_mutex_lock(&mutex);
+		printf("EARLY DISCONNECT\n"); 
+		clients_fd[0]=-1;
+		pthread_mutex_unlock(&mutex);
+		return;
+	}
+	choice1[choice1bytes] = '\0';
+
+	pthread_mutex_lock(&mutex);
+	client1flag = 1;
+	pthread_mutex_unlock(&mutex);
+
+		
+
+
+
+	free(arg);
+	
+
+		
+	
+
+
+}
+
+
+
+
+
+
+void* client_handler2( void* arg)
+{
+	
+		int connection_sd=*(int*)arg;
+		pthread_mutex_lock(&mutex);
+		clients_fd[1] = connection_sd; 
+		pthread_mutex_unlock(&mutex);
+
+		send(connection_sd, "CLIENT 1 SET\n", sizeof("CLIENT 1 SET\n"), 0);
+		send(connection_sd, "What is your name?\n", sizeof("What is your name?\n"), 0);
+		int p2namebytes = recv(connection_sd, player2, 128, 0);
+		if (p2namebytes == 0) 
+
+		{
+			pthread_mutex_lock(&mutex);
+			printf("EARLY DISCONNECT\n"); 
+			clients_fd[1]=-1;
+			pthread_mutex_unlock(&mutex);
+			return;
+		}
+
+		player2[p2namebytes] = '\0';
+		send(connection_sd, "Rock, paper, or scissors?\n", sizeof("Rock, paper, or scissors?\n"), 0);
+		int choice2bytes = recv(connection_sd, choice2, 9, 0);
+		if(choice2bytes == 0) 
+		{
+			pthread_mutex_lock(&mutex);
+			printf("EARLY DISCONNECT\n"); 
+			clients_fd[1]=-1;
+			pthread_mutex_unlock(&mutex);
+			return;
+		}
+		choice2[choice2bytes] = '\0';
+
+		pthread_mutex_lock(&mutex);
+		client2flag = 1;
+		pthread_mutex_unlock(&mutex);
+
+		
+		while(1)
+		{
+			pthread_mutex_lock(&mutex);
+			if (client1flag == 1 && client2flag==1)
+			{
+			send(clients_fd[0], "Done\n", sizeof("Done\n"), 0);
+			send(clients_fd[1], "Done\n", sizeof("Done\n"), 0);
+			close(clients_fd[0]);
+			close(clients_fd[1]);
+
+			clients_fd[0]=-1;
+			clients_fd[1]=-1;
+			client1flag=0;
+			client2flag=0;
+
+			}
+			pthread_mutex_unlock(&mutex);
+		}
+
+		free(arg);
+
+
+}
+
+
+
+
 
 void HandleEvents(DNSServiceRef serviceRef, int listen_socket)
 	{
@@ -33,18 +201,13 @@ void HandleEvents(DNSServiceRef serviceRef, int listen_socket)
 	struct timeval tv;
 	struct sockaddr_in client;
 	int clientlength = sizeof(client);
-	int clients_fd[2];
 	clients_fd[0] = -1;
 	clients_fd[1] = -1;
-	char player1[128];
-	char player2[128];
-	char choice1[8];
-	char choice2[8];
 	
 	
 	// . . .
 	while (!stopNow)
-		{
+	{
 		
 		
 		FD_ZERO(&readfds);
@@ -56,60 +219,62 @@ void HandleEvents(DNSServiceRef serviceRef, int listen_socket)
 		int result = select(max_sd, &readfds, (fd_set*)NULL, (fd_set*)NULL, &tv);
 		
 		if (result > 0)
-			{
+		{
 			
 			if (FD_ISSET(dns_sd_fd, &readfds))
 				err = DNSServiceProcessResult(serviceRef);
 			
 			if (FD_ISSET(listen_socket, &readfds))
-			{				
-				int newconnection = accept(listen_socket, (struct sockaddr *) &client, &clientlength);
-				printf("ACCEPTED\n");
-				if (clients_fd[0] == -1)
-					{
-					clients_fd[0] = newconnection; 
-					send(newconnection, "CLIENT 0 SET\n", sizeof("CLIENT 0 SET\n"), 0);
-					send(newconnection, "What is your name?\n", sizeof("What is your name?\n"), 0);
-					int p1namebytes = recv(newconnection, player1, 128, 0);
-					player1[p1namebytes] = '\0';
-					send(newconnection, "Rock, paper, or scissors?\n", sizeof("Rock, paper, or scissors?\n"), 0);
-					int choice1bytes = recv(newconnection, choice1, 9, 0);
-					choice1[choice1bytes] = '\0';
-					
-					}
+			{			
 
-				else if (clients_fd[1] == -1)
-					{clients_fd[1] = newconnection; send(newconnection, "CLIENT 1 SET\n", sizeof("CLIENT 1 SET\n"), 0);}
+				pthread_mutex_lock(&mutex);
+				int sd1 = clients_fd[0];
+				int sd2 = clients_fd[1];
+				int status1 = client1flag;
+				int status2 = client2flag;
+				pthread_mutex_unlock(&mutex);
 
-				
-				else
-					send(newconnection,"MAX NUMBER OF CONNECTIONS MADE: DISCONNECTING", sizeof("MAX NUMBER OF CONNECTIONS MADE: DISCONNECTING"), 0);
-					close(newconnection);
-					continue;
+				if (sd1==-1 && status1 !=1 )
+				{
+					int newconnection = accept(listen_socket, (struct sockaddr *) &client, &clientlength);
+					printf("ACCEPTED\n");
+					pthread_t tid;
+					int * argd = (int*) malloc(sizeof(int));
+					*argd=newconnection;
+					pthread_create(&tid, NULL, client_handler1,  (void *) argd);
+				}
 
 
-
-
-
-
-			}
-			if (err) stopNow = 1;
+				else if (sd2==-1 && status2 != 1)
+				{
+					int newconnection = accept(listen_socket, (struct sockaddr *) &client, &clientlength);
+					printf("ACCEPTED\n");
+					pthread_t tid;
+					int * argd = (int*) malloc(sizeof(int));
+					*argd=newconnection;
+					pthread_create(&tid, NULL, client_handler2,  (void *) argd);
+				}
 			
-
-		
-
-
+				
 			}
-
-
-
-
-		
+			if (err) {stopNow = 1;}
+			
+			
+			
 		}
-
-
 		
+		
+
+
+
+
+
+
+
 	}
+
+
+}
 
 
 static void
