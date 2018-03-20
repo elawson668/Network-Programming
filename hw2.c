@@ -276,6 +276,9 @@ void* client_handler1( void* arg)
 		pthread_mutex_unlock(&mutex);
 		return NULL;
 	}
+
+	if(strcmp(player1,"\n") == 0) goto get_name;
+
 	player1[p1namebytes-1] = '\0';
 	if (!isvalidname(player1, p1namebytes)) goto get_name;
 
@@ -339,6 +342,8 @@ void* client_handler2( void* arg)
 			pthread_mutex_unlock(&mutex);
 			return NULL;
 		}
+
+		if(strcmp(player2,"\n") == 0) goto get_name2;
 
 		player2[p2namebytes-1] = '\0';
 		if (!isvalidname(player2, p2namebytes)) goto get_name2;
