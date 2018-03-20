@@ -88,7 +88,7 @@ int isvalidchoice(char* choice, int size)
 	}
 
 	
-	if (strcmp(choice, "rock\0") != 0 && strcmp(choice, "paper\0") !=0 && strcmp(choice, "scissors\0") !=0 )  {return 0;}
+	if (strcmp(choice, "rock\0") != 0 && strcmp(choice, "paper\0") !=0 && strcmp(choice, "scissors\0") !=0 )  {printf("%s",choice);return 0;}
 	return 1;
 
 }
@@ -276,7 +276,10 @@ void* client_handler1( void* arg)
 		pthread_mutex_unlock(&mutex);
 		return NULL;
 	}
-	player1[p1namebytes] = '\0';
+
+	if(strcmp(player1,"\n") == 0) goto get_name;
+
+	player1[p1namebytes-1] = '\0';
 	if (!isvalidname(player1, p1namebytes)) goto get_name;
 
 	get_choice:
@@ -292,15 +295,12 @@ void* client_handler1( void* arg)
 		pthread_mutex_unlock(&mutex);
 		return NULL;
 	}
-	choice1[choice1bytes] = '\0';
+	choice1[choice1bytes-1] = '\0';
 	if (!isvalidchoice(choice1, choice1bytes)) goto get_choice;
 	printf("%s\n", choice1);
 	pthread_mutex_lock(&mutex);
 	client1flag = 1;
 	pthread_mutex_unlock(&mutex);
-
-		
-
 
 
 	free(arg);
@@ -340,7 +340,9 @@ void* client_handler2( void* arg)
 			return NULL;
 		}
 
-		player2[p2namebytes] = '\0';
+		if(strcmp(player2,"\n") == 0) goto get_name2;
+
+		player2[p2namebytes-1] = '\0';
 		if (!isvalidname(player2, p2namebytes)) goto get_name2;
 		get_choice2:
 		send(connection_sd, "Rock, paper, or scissors?\n", sizeof("Rock, paper, or scissors?\n"), 0);
@@ -355,7 +357,7 @@ void* client_handler2( void* arg)
 			pthread_mutex_unlock(&mutex);
 			return NULL;
 		}
-		choice2[choice2bytes] = '\0';
+		choice2[choice2bytes-1] = '\0';
 		if (!isvalidchoice(choice2, choice2bytes)) goto get_choice2;
 		pthread_mutex_lock(&mutex);
 		client2flag = 1;
