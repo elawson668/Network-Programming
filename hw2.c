@@ -302,9 +302,6 @@ void* client_handler1( void* arg)
 	client1flag = 1;
 	pthread_mutex_unlock(&mutex);
 
-		
-
-
 
 	free(arg);
 	return NULL;
