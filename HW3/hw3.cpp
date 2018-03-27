@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <arpa/inet.h>
 #include <sys/select.h>  
+#include <cstring>
 #include <string>
 #include <map>  
 #include <vector>
@@ -128,17 +129,15 @@ int main()
 					if(buf.substr(0,4).compare("USER") == 0) {
 
 						string name = buf.substr(5);
-						if(strlen(name) > 20) {
-							send(fd, "Invalid username\n", sizeof("Invalid username\n",0));
+						if(name.length() > 20) {
+							send(fd, "Invalid username\n", sizeof("Invalid username\n"),0);
+							bzero(buffer,1024);
 							continue;
 						}
 
 						users.insert(pair<int,string>(fd,name));
 						operators.insert(pair<int,bool>(fd,false));
-
-
 					}
-
 
 
 
