@@ -8,7 +8,11 @@
 #include <stdlib.h>
 #include <arpa/inet.h>
 #include <sys/select.h>  
-#include <map.h>   
+#include <string>
+#include <map>  
+#include <vector>
+#include <iostream>
+
 
 using namespace std;
 
@@ -114,14 +118,26 @@ int main()
 
 				}
 
-				else {printf("CLIENT %d sent me data\n", fd); 
+				else
+				{
+
+					printf("CLIENT %d sent me data\n", fd); 
+
+					string buf = buffer;
+
+					if(buf.substr(0,4).compare("USER") == 0) {
+
+						string name = buf.substr(5);
+						if(strlen(name) > 20) {
+							send(fd, "Invalid username\n", sizeof("Invalid username\n",0));
+							continue;
+						}
+
+						users.insert(pair<int,string>(fd,name));
+						operators.insert(pair<int,bool>(fd,false));
 
 
-
-
-
-
-
+					}
 
 
 
