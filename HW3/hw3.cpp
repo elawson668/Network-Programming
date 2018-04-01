@@ -13,6 +13,7 @@
 #include <map>  
 #include <vector>
 #include <iostream>
+#include <algorithm>
 
 
 using namespace std;
@@ -23,16 +24,34 @@ using namespace std;
 int client_fds[100];
 char buffer[1024];    
 
-map<string,vector<string> > channels;
+map<string,vector<int> > user_channels;
 map<int,string> users;
+map<string, int> nametofd;
 map<int,bool> operators;
+vector<string> server_channels;
+string password;
+bool ispassword = false;
 
 
 static volatile int timeOut = LONG_TIME;
 
-int main()
+int main(int argc, char* argv[])
 {
-	
+
+    if(argc == 2)
+    {
+	string flag = argv[1];
+	size_t equals = flag.find_first_of('=');
+
+	if (flag.substr(0,equals+1) == "--opt-pass=") 
+	{
+		password = flag.substr(equals+1);
+		ispassword=true;
+	}
+
+
+
+    }
     int listener_socket = socket( AF_INET, SOCK_STREAM, 0 );
 
 	if ( listener_socket < 0 )
@@ -115,29 +134,329 @@ int main()
 						    index--;
 						    break;     
 					   	}
-					}	
+					}
+					
+					nametofd.erase(users[fd]);
+					users.erase(fd);
+					operators.erase(fd);
+						
 
 				}
 
 				else
 				{
 
-					printf("CLIENT %d sent me data\n", fd); 
+					
+					buffer[incoming_bytes]='\0';
 
 					string buf = buffer;
 
-					if(buf.substr(0,4).compare("USER") == 0) {
+					if (users.find(fd) == users.end()) {
 
-						string name = buf.substr(5);
-						if(name.length() > 20) {
-							send(fd, "Invalid username\n", sizeof("Invalid username\n"),0);
+
+						if(buf.substr(0,5).compare("USER ") == 0) {
+
+							string name = buf.substr(5);
+							name.erase(remove(name.begin(), name.end(), '\n'), name.end());
+							if(name.length() > 20) {
+								send(fd, "Invalid username\n", sizeof("Invalid username\n"),0);
+								bzero(buffer,1024);
+								continue;
+							}
+
+							users.insert(pair<int,string>(fd,name));
+							operators.insert(pair<int,bool>(fd,false));
+							nametofd.insert(pair<string,int>(name,fd));
+						
+						}
+
+						else {
+							send(fd, "Invalid command, please identify yourself with USER.\n", 
+							sizeof("Invalid command, please identify yourself with USER.\n"),0);
+							close( fd );
+							for ( int a = 0 ; a < index ; a++ ) //find the descriptor that is closing
+							{
+								if ( fd == client_fds[ a ] ) //we found it, copy everything that connect after it
+								{
+						     
+									for ( int b = a ; b < index - 1 ; b++ ) //go up to the last index we have -1, we are copying the i+1th position to 													postion i
+								    {
+										client_fds[ b ] = client_fds[ b + 1 ];
+								    }
+							    index--;
+							    break;     
+					   			}
+							}
+						nametofd.erase(users[fd]);
+						users.erase(fd);
+						operators.erase(fd);
+
+					       }
+
+
+
+					}
+
+
+					
+
+					else if(buf.substr(0,5).compare("LIST\n") == 0) {
+
+						int count = server_channels.size();
+						int msize;
+						char message[100];
+						msize=sprintf(message, "There are currently %d channels.\n", count);
+						send(fd, message, msize,0);
+						for (int i=0; i < count; i++)
+						{
+							
+							msize=sprintf(message, "* %s\n", server_channels[i].c_str());	
+							send(fd, message, msize,0);
+							
+							
+						}
+						
+						
+						
+					}
+
+					else if(buf.substr(0,6).compare("LIST #") == 0) {
+
+						
+						string name = buf.substr(6);
+						name.erase(remove(name.begin(), name.end(), '\n'), name.end());
+						int count = server_channels.size();
+						int msize;
+						
+						if (user_channels.find(name) == user_channels.end())
+						{
+							
+							char message[100];
+							msize=sprintf(message, "There are currently %d channels.\n", count);
+							send(fd, message, msize,0);
+							for (int i=0; i < count; i++)
+							{
+								
+								msize=sprintf(message, "* %s\n", server_channels[i].c_str());	
+								send(fd, message, msize,0);
+								
+							
+							}
+						}
+						else 
+						{
+							char message[100];
+							msize=sprintf(message, "There are currently %d users.\n", user_channels[name].size());
+							send(fd, message, msize,0);
+							for (int i=0; i < user_channels[name].size(); i++)
+							{
+								
+								msize=sprintf(message, "* %s\n", users[user_channels[name][i]].c_str());	
+								send(fd, message, msize,0);
+								
+							
+							}
+
+						
+
+						}
+						
+						
+						
+					}
+
+					else if(buf.substr(0,6).compare("JOIN #") == 0) {
+
+						
+						string name = buf.substr(6);
+						name.erase(remove(name.begin(), name.end(), '\n'), name.end());
+						if (name.length() > 19) {
+							send(fd, "Invalid channel name\n", sizeof("Invalid channel name\n"),0); 
 							bzero(buffer,1024);
 							continue;
 						}
+						if (user_channels.find(name) == user_channels.end())
+						{
+							
+							server_channels.push_back(name);
+							vector<int> newvector;
+							newvector.push_back(fd);
+							user_channels.insert(pair<string, vector<int> >(name,newvector));
+							char message[100];
+							int msize=sprintf(message, "Joined channel #%s\n", name.c_str());
+							send(fd, message, msize,0);
+						}
+						
+						else
+						{
+							if (find(user_channels[name].begin(), user_channels[name].end(), fd) ==user_channels[name].end())
+							{
+								for (int i=0; i < user_channels[name].size(); i++)
+								{
+									char message[100];
+									int msize=sprintf(message, "#%s> %s joined the channel.\n",name.c_str(), users[fd].c_str() );
+									send(user_channels[name][i],message, msize,0);
+								}
 
-						users.insert(pair<int,string>(fd,name));
-						operators.insert(pair<int,bool>(fd,false));
+								user_channels[name].push_back(fd);
+								char message2[100];
+								int msize2=sprintf(message2, "Joined channel #%s\n", name.c_str());
+								send(fd, message2, msize2,0);	
+							}
+							
+							else{continue;}
+
+							
+
+						}
+							
+						
+						
 					}
+
+
+					else if(buf.substr(0,6).compare("PART #") == 0) {
+					
+						string name = buf.substr(6);
+						name.erase(remove(name.begin(), name.end(), '\n'), name.end());
+						if (user_channels.find(name) == user_channels.end())
+						{
+							char message[100];
+							int msize=sprintf(message, "You are not currently in #%s.\n",name.c_str());
+							send(fd, message, msize,0);	
+							continue; //channel does not exist
+						}
+						
+						else
+						{
+							if (find(user_channels[name].begin(), user_channels[name].end(), fd) ==user_channels[name].end())
+							{
+								continue; //not in the channel, silent ignore
+							}
+							
+							else //channel exists and this fd is in it
+							{
+								
+								for (int i=0; i <  user_channels[name].size(); i++)
+								{
+									char message[100];
+									int msize=sprintf(message, "#%s> %s left the channel.\n",name.c_str(), users[fd].c_str() );
+									send(user_channels[name][i],message, msize,0);
+
+								}
+
+								vector<int>::iterator it;
+								it = find(user_channels[name].begin(), user_channels[name].end(), fd);
+								user_channels[name].erase(it);
+							}
+
+						}
+						
+						
+						
+						
+					}
+
+
+
+					else if(buf.substr(0,5).compare("PART\n") == 0) {
+					
+						map<string,vector<int> >::iterator mit;
+						for (mit=user_channels.begin(); mit != user_channels.end(); mit++)
+						{	
+							
+							if(find(user_channels[mit->first].begin(), user_channels[mit->first].end(), fd)!=user_channels[mit->first].end())
+							{
+
+
+								for (int i=0; i <  user_channels[mit->first].size(); i++)
+								{
+								char message[100];
+								int msize=sprintf(message, "#%s> %s left the channel.\n",(mit->first).c_str(), users[fd].c_str());
+								send(user_channels[mit->first][i],message, msize,0);
+
+								}
+
+								vector<int>::iterator it;
+								it = find(user_channels[mit->first].begin(), user_channels[mit->first].end(), fd);
+								user_channels[mit->first].erase(it);
+
+							}
+
+						}
+						
+						
+						
+						
+						
+					}
+
+
+					else if(buf.substr(0,9).compare("OPERATOR ") == 0) {
+						
+						if (!ispassword) {continue;} //no password provided, so we can't promote people
+						string pass = buf.substr(9);
+						pass.erase(remove(pass.begin(), pass.end(), '\n'), pass.end());
+						if (pass == password)
+						{
+
+							operators[fd]=true;
+							send(fd,"OPERATOR status bestowed.\n", sizeof("OPERATOR status bestowed.\n"),0);
+							continue;
+						}
+						
+						send(fd,"Invalid OPERATOR command.\n", sizeof("Invalid OPERATOR command.\n"),0);
+						
+						
+						
+					}
+
+					else if(buf.substr(0,6).compare("KICK #") == 0)
+					{	
+
+						if (operators[fd]==false) {continue;} //not an operator, can't do anything
+						string params = buf.substr(6);
+						
+						size_t found = params.find(' ');
+						if (found == string::npos) {continue;} //THere is no space separating channel and name, what do we do here?????
+						
+						string channel = params.substr(0,found);
+						string name = params.substr(found+1);
+						name.erase(remove(name.begin(), name.end(), '\n'), name.end());
+					
+						
+						if (user_channels.find(channel) == user_channels.end())
+						{
+							continue; //channel does not exist
+						}
+
+						if (nametofd.find(name) == nametofd.end())
+						{
+							continue; //username does not exist
+						}
+						
+						int fd_kick=nametofd[name];
+						if(find(user_channels[channel].begin(), user_channels[channel].end(), fd_kick)!=user_channels[channel].end())
+						{
+							for (int i=0; i <  user_channels[channel].size(); i++)
+							{
+								char message[100];
+								int msize=sprintf(message, "#%s> %s has been kicked from the channel.\n",channel.c_str(), name.c_str() );
+								send(user_channels[channel][i],message, msize,0);
+
+							}
+
+								vector<int>::iterator it;
+								it = find(user_channels[channel].begin(), user_channels[channel].end(), fd_kick);
+								user_channels[channel].erase(it);
+						}
+
+						else {continue;} //user is not in that channel, sned an error or something?
+						
+
+					}
+
+					
 
 
 
