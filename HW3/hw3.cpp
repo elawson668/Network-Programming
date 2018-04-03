@@ -187,11 +187,11 @@ int main(int argc, char* argv[])
 							    break;     
 					   			}
 							}
-						nametofd.erase(users[fd]);
-						users.erase(fd);
-						operators.erase(fd);
+							nametofd.erase(users[fd]);
+							users.erase(fd);
+							operators.erase(fd);
 
-					       }
+					    }
 
 
 
@@ -246,7 +246,7 @@ int main(int argc, char* argv[])
 						else 
 						{
 							char message[100];
-							msize=sprintf(message, "There are currently %d users.\n", user_channels[name].size());
+							msize=sprintf(message, "There are currently %lu users.\n", user_channels[name].size());
 							send(fd, message, msize,0);
 							for (int i=0; i < user_channels[name].size(); i++)
 							{
@@ -455,6 +455,65 @@ int main(int argc, char* argv[])
 						
 
 					}
+
+
+					else if(buf.substr(0,9).compare("PRIVMSG #") == 0) {
+						string params = buf.substr(9);
+
+						size_t found = params.find(" ");
+						if(found == string::npos) {continue;}
+
+						string channel = params.substr(0,found);
+						string message = params.substr(found+1);
+
+						if(message.length() > 512) {
+							send(fd,"Message too long.\n",sizeof("Message too long.\n"),0);
+							continue;
+						}
+
+						if(user_channels.find(channel) == user_channels.end()) {
+							continue; // channel does not exist
+						}
+
+						if(find(user_channels[channel].begin(), user_channels[channel].end(), fd) != user_channels[channel].end()) {
+
+							for(int i = 0; i < user_channels[channel].size(); i++) {
+								char mssg[message.length() + channel.length() + users[fd].length() + 5];
+								int msize = sprintf(mssg, "#%s> %s: %s", channel.c_str(), users[fd].c_str(), message.c_str());
+								send(user_channels[channel][i],mssg,msize,0);
+							}
+						}
+						else {continue;} // user is not in channel
+
+					}
+
+					else if(buf.substr(0,8).compare("PRIVMSG ") == 0) {
+						string params = buf.substr(8);
+
+						size_t found = params.find(" ");
+						if(found == string::npos) {continue;}
+
+						string user = params.substr(0,found);
+						string message = params.substr(found+1);
+
+						if(message.length() > 512) {
+							send(fd,"Message too long.\n",sizeof("Message too long.\n"),0);
+							continue;							
+						}
+
+						if(nametofd.find(user) == nametofd.end()) {
+							continue; // user does not exist
+						}
+
+						int user_fd = nametofd[user];
+						
+						char mssg[users[fd].length() + message.length() + 2];
+						int msize = sprintf(mssg, "%s> %s",users[fd].c_str(), message.c_str());
+						send(user_fd,mssg,msize,0);
+
+					}
+
+
 
 					
 
