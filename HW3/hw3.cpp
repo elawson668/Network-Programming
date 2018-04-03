@@ -513,11 +513,55 @@ int main(int argc, char* argv[])
 
 					}
 
+					else if(buf.substr(0,5).compare("QUIT\n") == 0) {
 
 
+						map<string,vector<int> >::iterator mit;
+						for (mit=user_channels.begin(); mit != user_channels.end(); mit++)
+						{	
+							
+							if(find(user_channels[mit->first].begin(), user_channels[mit->first].end(), fd)!=user_channels[mit->first].end())
+							{
+
+
+								for (int i=0; i <  user_channels[mit->first].size(); i++)
+								{
+									if(user_channels[mit->first][i] == fd) {continue;}
+									char message[100];
+									int msize=sprintf(message, "#%s> %s left the channel.\n",(mit->first).c_str(), users[fd].c_str());
+									send(user_channels[mit->first][i],message, msize,0);
+
+								}
+
+								vector<int>::iterator it;
+								it = find(user_channels[mit->first].begin(), user_channels[mit->first].end(), fd);
+								user_channels[mit->first].erase(it);
+
+							}
+
+						}	
+
+						close( fd );
+						for ( int a = 0 ; a < index ; a++ ) //find the descriptor that is closing
+							{
+							if ( fd == client_fds[ a ] ) //we found it, copy everything that connect after it
+							{
+						     
+								for ( int b = a ; b < index - 1 ; b++ ) //go up to the last index we have -1, we are copying the i+1th position to 													postion i
+						    	{
+									client_fds[ b ] = client_fds[ b + 1 ];
+						    	}
+						    	index--;
+						    	break;     
+					   		}
+						}
+
+						nametofd.erase(users[fd]);
+						users.erase(fd);
+						operators.erase(fd);											
+
+					}
 					
-
-
 
 				}
 
