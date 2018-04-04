@@ -183,7 +183,7 @@ int main(int argc, char* argv[])
 							string name = buf.substr(5);
 							name.erase(remove(name.begin(), name.end(), '\n'), name.end());
 							if(name.length() > 20) {
-								send(fd, "Invalid username\n", sizeof("Invalid username\n"),0);
+								send(fd, "Invalid username.\n", sizeof("Invalid username.\n"),0);
 								bzero(buffer,1024);
 							
 								close( fd );
@@ -209,7 +209,7 @@ int main(int argc, char* argv[])
 							}
 
 							if(!regex(name)) {
-								send(fd, "Invalid username\n", sizeof("Invalid username\n"),0);
+								send(fd, "Invalid username.\n", sizeof("Invalid username.\n"),0);
 								bzero(buffer,1024);
 
 								close( fd );
@@ -239,6 +239,9 @@ int main(int argc, char* argv[])
 							users.insert(pair<int,string>(fd,name));
 							operators.insert(pair<int,bool>(fd,false));
 							nametofd.insert(pair<string,int>(name,fd));
+							char message[100];
+							int msize=sprintf(message, "Welcome, %s\n", name.c_str());
+							send(fd, message, msize,0);
 						
 						}
 
@@ -343,13 +346,13 @@ int main(int argc, char* argv[])
 						string name = buf.substr(6);
 						name.erase(remove(name.begin(), name.end(), '\n'), name.end());
 						if (name.length() > 19) {
-							send(fd, "Invalid channel name\n", sizeof("Invalid channel name\n"),0); 
+							send(fd, "Invalid channel name.\n", sizeof("Invalid channel name.\n"),0); 
 							bzero(buffer,1024);
 							continue;
 						}
 
 						if(!regex(name)) {
-							send(fd, "Invalid channel name\n", sizeof("Invalid channel name\n"),0); 
+							send(fd, "Invalid channel name.\n", sizeof("Invalid channel name.\n"),0); 
 							bzero(buffer,1024);
 							continue;							
 						}
@@ -410,6 +413,9 @@ int main(int argc, char* argv[])
 						{
 							if (find(user_channels[name].begin(), user_channels[name].end(), fd) ==user_channels[name].end())
 							{
+								char message[100];
+								int msize=sprintf(message, "You are not currently in #%s.\n",name.c_str());
+								send(fd, message, msize,0);								
 								continue; //not in the channel, silent ignore
 							}
 							
@@ -545,7 +551,7 @@ int main(int argc, char* argv[])
 						string channel = params.substr(0,found);
 						string message = params.substr(found+1);
 
-						if(message.length() > 512) {
+						if(message.length() > 513) {
 							send(fd,"Message too long.\n",sizeof("Message too long.\n"),0);
 							continue;
 						}
@@ -575,7 +581,7 @@ int main(int argc, char* argv[])
 						string user = params.substr(0,found);
 						string message = params.substr(found+1);
 
-						if(message.length() > 512) {
+						if(message.length() > 513) {
 							send(fd,"Message too long.\n",sizeof("Message too long.\n"),0);
 							continue;							
 						}
@@ -639,6 +645,13 @@ int main(int argc, char* argv[])
 						users.erase(fd);
 						operators.erase(fd);											
 
+					}
+
+
+					else{
+
+						send(fd, "Invalid command.\n", sizeof("Invalid command.\n"), 0);
+						
 					}
 
 
