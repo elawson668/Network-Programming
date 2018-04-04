@@ -16,6 +16,7 @@
 #include <algorithm>
 
 
+
 using namespace std;
 
 
@@ -35,6 +36,23 @@ bool ispassword = false;
 
 static volatile int timeOut = LONG_TIME;
 
+bool regex(string word) {
+
+	int n = word.length();
+	char w[n];
+	strcpy(w,word.c_str());
+
+	if(!isalpha(w[0])) return false;
+
+	for(int i = 1; i < n; i++) {
+		if(!isalpha(w[i]) && !isdigit(w[i]) && w[i] != '_') return false;
+	}
+
+	return true;
+}
+
+
+
 int main(int argc, char* argv[])
 {
 
@@ -46,6 +64,12 @@ int main(int argc, char* argv[])
 	if (flag.substr(0,equals+1) == "--opt-pass=") 
 	{
 		password = flag.substr(equals+1);
+
+		if(!regex(password)) {
+			cout << "Startup failed - invalid password.\n";
+			return 0;
+		}
+
 		ispassword=true;
 	}
 
@@ -161,8 +185,56 @@ int main(int argc, char* argv[])
 							if(name.length() > 20) {
 								send(fd, "Invalid username\n", sizeof("Invalid username\n"),0);
 								bzero(buffer,1024);
+							
+								close( fd );
+								for ( int a = 0 ; a < index ; a++ ) //find the descriptor that is closing
+								{
+									if ( fd == client_fds[ a ] ) //we found it, copy everything that connect after it
+									{
+						     
+										for ( int b = a ; b < index - 1 ; b++ ) //go up to the last index we have -1, we are copying the i+1th position to 													postion i
+								    	{
+											client_fds[ b ] = client_fds[ b + 1 ];
+								    	}
+							    	index--;
+							    	break;     
+					   				}
+								}
+
+								nametofd.erase(users[fd]);
+								users.erase(fd);
+								operators.erase(fd);
+
 								continue;
 							}
+
+							if(!regex(name)) {
+								send(fd, "Invalid username\n", sizeof("Invalid username\n"),0);
+								bzero(buffer,1024);
+
+								close( fd );
+								for ( int a = 0 ; a < index ; a++ ) //find the descriptor that is closing
+								{
+									if ( fd == client_fds[ a ] ) //we found it, copy everything that connect after it
+									{
+						     
+										for ( int b = a ; b < index - 1 ; b++ ) //go up to the last index we have -1, we are copying the i+1th position to 													postion i
+								    	{
+											client_fds[ b ] = client_fds[ b + 1 ];
+								    	}
+							    	index--;
+							    	break;     
+					   				}
+								}
+
+								nametofd.erase(users[fd]);
+								users.erase(fd);
+								operators.erase(fd);
+
+								continue;
+
+							}
+
 
 							users.insert(pair<int,string>(fd,name));
 							operators.insert(pair<int,bool>(fd,false));
@@ -275,6 +347,13 @@ int main(int argc, char* argv[])
 							bzero(buffer,1024);
 							continue;
 						}
+
+						if(!regex(name)) {
+							send(fd, "Invalid channel name\n", sizeof("Invalid channel name\n"),0); 
+							bzero(buffer,1024);
+							continue;							
+						}
+
 						if (user_channels.find(name) == user_channels.end())
 						{
 							
@@ -561,7 +640,7 @@ int main(int argc, char* argv[])
 						operators.erase(fd);											
 
 					}
-					
+
 
 				}
 
