@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <signal.h>
 #include <math.h>
-
+ 
 int end_now = 0;
 
 void sig_handler(int signo)
