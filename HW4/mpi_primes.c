@@ -7,6 +7,7 @@
  
 int end_now = 0;
 
+// Handle timeout signal, set end_now to 1 to notify processes to stop
 void sig_handler(int signo)
 {
     if (signo == SIGUSR1) {
@@ -17,68 +18,78 @@ void sig_handler(int signo)
 int main(int argc, char **argv)
 {
     int count, id;
-    int total_primes=0;
+    int total_primes = 0;
     int total_end = 0;
    
-
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &count);
     MPI_Comm_rank(MPI_COMM_WORLD, &id);
+
     signal(SIGUSR1, sig_handler);
+
     int n = id + 2;
-    int limit=10;
+    int limit = 10;
     int narray[count];
     int flags[count];	
-    if (id ==0) {printf("           N	       Primes\n");}
-    while (n < 2147483647) {
-    //while (n < 10){
 
+    if (id == 0) {printf("           N	       Primes\n");}
 
-	MPI_Allreduce(&end_now, &total_end, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-	
-	if (total_end == 1)
-	{
-		break;
-	}
+    while (n < 2147483647) { //max 32 bit int
 
-	int i;
-	int flag=0;
-	int x =  (int) sqrt(n);
-	for (i=2; i <= x; i++)
-	{	
-		//if (end_now ==1) {flag=1; break;}
-		if (n%i != 0) {continue;}
-		else {flag=1; break;}
-	}
+		int i;
+		int flag = 0;
+
+		// Determine if n is a prime number, set flag to 1 if it is
+		int x = (int) sqrt(n);
+		for (i = 2; i <= x; i++)
+		{	
+			if (n % i != 0) {continue;}
+			else {flag = 1; break;}
+		}
 	
 	
-	int sendn=n;
-	int sendflag=flag;	
+		int sendn = n;
+		int sendflag = flag;	
 
-	MPI_Gather(&sendn, 1, MPI_INT, narray, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	MPI_Gather(&sendflag, 1, MPI_INT, flags, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	int j;
-	if (id==0)
-	{
-	for (j=0; j < count; j++)
-	{
-		if(flags[j] == 0) {total_primes++;}
-		if (narray[j] == limit) { printf("%12d\t%12d\n", limit, total_primes); limit = limit*10;}
+		// Gather the n and flag values from each rank, insert into narray and flags
+		MPI_Gather(&sendn, 1, MPI_INT, narray, 1, MPI_INT, 0, MPI_COMM_WORLD);
+		MPI_Gather(&sendflag, 1, MPI_INT, flags, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-	}
+		// Reduce the endnow values from each rank, find the max value. Max value would be 1, meaning all processes should stop
+		MPI_Allreduce(&end_now, &total_end, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 	
-	
+		// If the allreduce finds an end_now value of 1, stop the process
+		if (total_end == 1)
+		{
+			break;
+		}
 
-	}
+		int j;
 
-	n= n + count;
+		// If on base rank, 
+		if (id == 0)
+		{
+			// Iterate through narray and flags
+			for (j = 0; j < count; j++)
+			{
+				// If prime number, increment total primes
+				if(flags[j] == 0) {total_primes++;}
+
+				// If current n is at the current limit, output info, then multiply limit by 10
+				if (narray[j] == limit) { printf("%12d\t%12d\n", limit, total_primes); limit = limit * 10;}
+
+			}
+
+		}
+
+		// Each rank increments n by count(the number of ranks) each iteration. With 4 ranks, rank 0 handles 1,5,9..., rank 1 handles 2,6,10...., etc.
+		n = n + count;
 	
     }
     
-    //MPI_Allreduce(&n, &total_n, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-    //MPI_Allreduce(&local_primes, &total_primes, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-    if (id ==0) {printf("<Signal received>\n"); printf("%12d\t%12d\n", n, total_primes);}
-    //printf("RANK %d got to %d\n", id, n);
+    // Output final info
+    if (id == 0) {printf("<Signal received>\n"); printf("%12d\t%12d\n", n, total_primes);}
+
     MPI_Finalize();
 	
     
