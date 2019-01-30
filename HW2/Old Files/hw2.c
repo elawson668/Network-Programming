@@ -14,7 +14,6 @@
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <pthread.h>
-#include <ctype.h>
 
 #define LONG_TIME 100000000
 
@@ -27,8 +26,8 @@ pthread_mutex_t mutex2=PTHREAD_MUTEX_INITIALIZER;
 int clients_fd[2];
 char player1[128];
 char player2[128];
-char choice1[10];
-char choice2[10];
+char choice1[8];
+char choice2[8];
 int client1flag=0;
 int client2flag=0;
 
@@ -63,192 +62,6 @@ int client2flag=0;
 */
 
 
-int isvalidname(char* name, int size)
-{	int i;
-	int space_count=0;
-	for (i=0; i < size; i++)
-	{
-		if (isspace(name[i])) {space_count++;}
-	}
-	
-	if (space_count == size) {return 0;}
-	return 1;
-
-
-
-
-}
-
-int isvalidchoice(char* choice, int size)
-{
-	int i;
-	for (i=0; i < size; i++)
-	{
-		choice[i] = tolower(choice[i]);
-	}
-
-	
-	if (strcmp(choice, "rock\0") != 0 && strcmp(choice, "paper\0") !=0 && strcmp(choice, "scissors\0") !=0 )  {printf("%s",choice);return 0;}
-	return 1;
-
-}
-
-
-void game(char* c1, char*c2, int sd1, int sd2)
-{
-
-int i=0;
-for (;;)
-{
-if (player1[i] == '\0') break;
-player1[i]=toupper(player1[i]);
-i++;
-
-}
-
-i=0;
-for (;;)
-{
-if (player2[i] == '\0') break;
-player2[i]=toupper(player2[i]);
-i++;
-
-}
-
-if ((strcmp(c1, "rock")==0) && (strcmp(c2,"rock")==0))
-{
-send(sd1, "Tie!\n", sizeof("Tie!\n"), 0);
-send(sd2, "Tie!\n", sizeof("Tie!\n"), 0);
-
-} 
-
-else if ((strcmp(c1, "rock")==0) && (strcmp(c2,"paper")==0))
-{
-
-send(sd1, "PAPER covers ROCK! ", sizeof("PAPER covers ROCK! ")-1, 0);
-send(sd2, "PAPER covers ROCK! ", sizeof("PAPER covers ROCK! ")-1, 0);
-
-send(sd1, player2, sizeof(player2)-1, 0);
-send(sd2, player2, sizeof(player2)-1, 0);
-send(sd1, " defeats ", sizeof(" defeats ")-1,0);
-send(sd2, " defeats ", sizeof(" defeats ")-1, 0);
-send(sd1, player1, sizeof(player1)-1, 0);
-send(sd2, player1, sizeof(player1)-1, 0);
-send(sd1, "!\n\0", 3,0);
-send(sd2, "!\n\0", 3,0);
-
-} 
-
-
-else if ((strcmp(c1, "rock")==0) && (strcmp(c2,"scissors")==0))
-{
-
-send(sd1, "ROCK smashes SCISSORS! ", sizeof("ROCK smashes SCISSORS! ")-1, 0);
-send(sd2, "ROCK smashes SCISSORS! ", sizeof("ROCK smashes SCISSORS! ")-1, 0);
-
-send(sd1, player1, sizeof(player1)-1, 0);
-send(sd2, player1, sizeof(player1)-1, 0);
-send(sd1, " defeats ", sizeof(" defeats ")-1,0);
-send(sd2, " defeats ", sizeof(" defeats ")-1, 0);
-send(sd1, player2, sizeof(player2)-1, 0);
-send(sd2, player2, sizeof(player2)-1, 0);
-send(sd1, "!\n\0", 3,0);
-send(sd2, "!\n\0", 3,0);
-
-} 
-
-
-else if ((strcmp(c1, "paper")==0) && (strcmp(c2,"rock")==0))
-{
-
-send(sd1, "PAPER covers ROCK! ", sizeof("PAPER covers ROCK! ")-1, 0);
-send(sd2, "PAPER covers ROCK! ", sizeof("PAPER covers ROCK! ")-1, 0);
-
-send(sd1, player1, sizeof(player1)-1, 0);
-send(sd2, player1, sizeof(player1)-1, 0);
-send(sd1, " defeats ", sizeof(" defeats ")-1,0);
-send(sd2, " defeats ", sizeof(" defeats ")-1, 0);
-send(sd1, player2, sizeof(player2)-1, 0);
-send(sd2, player2, sizeof(player2)-1, 0);
-send(sd1, "!\n\0", 3,0);
-send(sd2, "!\n\0", 3,0);
-
-} 
-
-else if ((strcmp(c1, "paper")==0) && (strcmp(c2,"paper")==0))
-{
-send(sd1, "Tie!\n", sizeof("Tie!\n"), 0);
-send(sd2, "Tie!\n", sizeof("Tie!\n"), 0);
-
-} 
-
-else if ((strcmp(c1, "paper")==0) && (strcmp(c2,"scissors")==0))
-{
-
-send(sd1, "SCISSORS cuts PAPER! ", sizeof("SCISSORS cuts PAPER! ")-1, 0);
-send(sd2, "SCISSORS cuts PAPER! ", sizeof("SCISSORS cuts PAPER! ")-1, 0);
-
-send(sd1, player2, sizeof(player2)-1, 0);
-send(sd2, player2, sizeof(player2)-1, 0);
-send(sd1, " defeats ", sizeof(" defeats ")-1,0);
-send(sd2, " defeats ", sizeof(" defeats ")-1, 0);
-send(sd1, player1, sizeof(player1)-1, 0);
-send(sd2, player1, sizeof(player1)-1, 0);
-send(sd1, "!\n\0", 3,0);
-send(sd2, "!\n\0", 3,0);
-
-}
-else if ((strcmp(c1, "scissors")==0) && (strcmp(c2,"rock")==0))
-{
-
-send(sd1, "ROCK smashes SCISSORS! ", sizeof("ROCK smashes SCISSORS! ")-1, 0);
-send(sd2, "ROCK smashes SCISSORS! ", sizeof("ROCK smashes SCISSORS! ")-1, 0);
-
-send(sd1, player2, sizeof(player2)-1, 0);
-send(sd2, player2, sizeof(player2)-1, 0);
-send(sd1, " defeats ", sizeof(" defeats ")-1,0);
-send(sd2, " defeats ", sizeof(" defeats ")-1, 0);
-send(sd1, player1, sizeof(player1)-1, 0);
-send(sd2, player1, sizeof(player1)-1, 0);
-send(sd1, "!\n\0", 3,0);
-send(sd2, "!\n\0", 3,0);
-}
-
-
-else if ((strcmp(c1, "scissors")==0) && (strcmp(c2,"paper")==0))
-{
-send(sd1, "SCISSORS cuts PAPER! ", sizeof("SCISSORS cuts PAPER! ")-1, 0);
-send(sd2, "SCISSORS cuts PAPER! ", sizeof("SCISSORS cuts PAPER! ")-1, 0);
-
-send(sd1, player1, sizeof(player1)-1, 0);
-send(sd2, player1, sizeof(player1)-1, 0);
-send(sd1, " defeats ", sizeof(" defeats ")-1,0);
-send(sd2, " defeats ", sizeof(" defeats ")-1, 0);
-send(sd1, player2, sizeof(player2)-1, 0);
-send(sd2, player2, sizeof(player2)-1, 0);
-send(sd1, "!\n\0", 3,0);
-send(sd2, "!\n\0", 3,0);
-
-}
-
-else if ((strcmp(c1, "scissors")==0) && (strcmp(c2,"scissors")==0))
-{
-send(sd1, "Tie!\n", sizeof("Tie!\n"), 0);
-send(sd2, "Tie!\n", sizeof("Tie!\n"), 0);
-
-} 
-
-bzero(&player1, sizeof(player1));
-bzero(&choice1, sizeof(choice1));
-
-bzero(&player2, sizeof(player2));
-bzero(&choice2, sizeof(choice2));
-
-
-
-
-}
-
 
 void* client_handler1( void* arg)
 {
@@ -263,7 +76,6 @@ void* client_handler1( void* arg)
 
 
 	send(connection_sd, "CLIENT 0 SET\n", sizeof("CLIENT 0 SET\n"), 0);
-	get_name:
 	send(connection_sd, "What is your name?\n", sizeof("What is your name?\n"), 0);
 	int p1namebytes = recv(connection_sd, player1, 128, 0);
 	if (p1namebytes == 0) 
@@ -271,18 +83,10 @@ void* client_handler1( void* arg)
 		pthread_mutex_lock(&mutex);
 		printf("EARLY DISCONNECT\n"); 
 		clients_fd[0]=-1;
-		bzero(&player1, sizeof(player1));
-		bzero(&choice1, sizeof(choice1));
 		pthread_mutex_unlock(&mutex);
-		return NULL;
+		return;
 	}
-
-	if(strcmp(player1,"\n") == 0) goto get_name;
-
-	player1[p1namebytes-1] = '\0';
-	if (!isvalidname(player1, p1namebytes)) goto get_name;
-
-	get_choice:
+	player1[p1namebytes] = '\0';
 	send(connection_sd, "Rock, paper, or scissors?\n", sizeof("Rock, paper, or scissors?\n"), 0);
 	int choice1bytes = recv(connection_sd, choice1, 9, 0);
 	if(choice1bytes == 0) 
@@ -290,21 +94,20 @@ void* client_handler1( void* arg)
 		pthread_mutex_lock(&mutex);
 		printf("EARLY DISCONNECT\n"); 
 		clients_fd[0]=-1;
-		bzero(&player1, sizeof(player1));
-		bzero(&choice1, sizeof(choice1));
 		pthread_mutex_unlock(&mutex);
-		return NULL;
+		return;
 	}
-	choice1[choice1bytes-1] = '\0';
-	if (!isvalidchoice(choice1, choice1bytes)) goto get_choice;
-	printf("%s\n", choice1);
+	choice1[choice1bytes] = '\0';
+
 	pthread_mutex_lock(&mutex);
 	client1flag = 1;
 	pthread_mutex_unlock(&mutex);
 
+		
+
+
 
 	free(arg);
-	return NULL;
 	
 
 		
@@ -326,8 +129,7 @@ void* client_handler2( void* arg)
 		clients_fd[1] = connection_sd; 
 		pthread_mutex_unlock(&mutex);
 
-		//send(connection_sd, "CLIENT 1 SET\n", sizeof("CLIENT 1 SET\n"), 0);
-		get_name2:
+		send(connection_sd, "CLIENT 1 SET\n", sizeof("CLIENT 1 SET\n"), 0);
 		send(connection_sd, "What is your name?\n", sizeof("What is your name?\n"), 0);
 		int p2namebytes = recv(connection_sd, player2, 128, 0);
 		if (p2namebytes == 0) 
@@ -337,14 +139,10 @@ void* client_handler2( void* arg)
 			printf("EARLY DISCONNECT\n"); 
 			clients_fd[1]=-1;
 			pthread_mutex_unlock(&mutex);
-			return NULL;
+			return;
 		}
 
-		if(strcmp(player2,"\n") == 0) goto get_name2;
-
-		player2[p2namebytes-1] = '\0';
-		if (!isvalidname(player2, p2namebytes)) goto get_name2;
-		get_choice2:
+		player2[p2namebytes] = '\0';
 		send(connection_sd, "Rock, paper, or scissors?\n", sizeof("Rock, paper, or scissors?\n"), 0);
 		int choice2bytes = recv(connection_sd, choice2, 9, 0);
 		if(choice2bytes == 0) 
@@ -352,25 +150,23 @@ void* client_handler2( void* arg)
 			pthread_mutex_lock(&mutex);
 			printf("EARLY DISCONNECT\n"); 
 			clients_fd[1]=-1;
-			bzero(&player2, sizeof(player2));
-			bzero(&choice2, sizeof(choice2));
 			pthread_mutex_unlock(&mutex);
-			return NULL;
+			return;
 		}
-		choice2[choice2bytes-1] = '\0';
-		if (!isvalidchoice(choice2, choice2bytes)) goto get_choice2;
+		choice2[choice2bytes] = '\0';
+
 		pthread_mutex_lock(&mutex);
 		client2flag = 1;
 		pthread_mutex_unlock(&mutex);
 
-		int x = 1;
-		while(x)
+		
+		while(1)
 		{
 			pthread_mutex_lock(&mutex);
 			if (client1flag == 1 && client2flag==1)
 			{
-	
-			game(choice1, choice2, clients_fd[0], clients_fd[1]);
+			send(clients_fd[0], "Done\n", sizeof("Done\n"), 0);
+			send(clients_fd[1], "Done\n", sizeof("Done\n"), 0);
 			close(clients_fd[0]);
 			close(clients_fd[1]);
 
@@ -378,15 +174,12 @@ void* client_handler2( void* arg)
 			clients_fd[1]=-1;
 			client1flag=0;
 			client2flag=0;
-			pthread_mutex_unlock(&mutex);
-			break;
 
 			}
 			pthread_mutex_unlock(&mutex);
 		}
 
 		free(arg);
-		return NULL;
 
 
 }
@@ -407,7 +200,7 @@ void HandleEvents(DNSServiceRef serviceRef, int listen_socket)
 	fd_set readfds;
 	struct timeval tv;
 	struct sockaddr_in client;
-	socklen_t clientlength = sizeof(client);
+	int clientlength = sizeof(client);
 	clients_fd[0] = -1;
 	clients_fd[1] = -1;
 	
@@ -431,16 +224,15 @@ void HandleEvents(DNSServiceRef serviceRef, int listen_socket)
 			if (FD_ISSET(dns_sd_fd, &readfds))
 				err = DNSServiceProcessResult(serviceRef);
 			
-			pthread_mutex_lock(&mutex);
 			if (FD_ISSET(listen_socket, &readfds))
 			{			
 
-				
+				pthread_mutex_lock(&mutex);
 				int sd1 = clients_fd[0];
 				int sd2 = clients_fd[1];
 				int status1 = client1flag;
 				int status2 = client2flag;
-				
+				pthread_mutex_unlock(&mutex);
 
 				if (sd1==-1 && status1 !=1 )
 				{
@@ -465,7 +257,6 @@ void HandleEvents(DNSServiceRef serviceRef, int listen_socket)
 			
 				
 			}
-			pthread_mutex_unlock(&mutex);
 			if (err) {stopNow = 1;}
 			
 			
@@ -537,7 +328,7 @@ static DNSServiceErrorType MyDNSServiceRegister(tport, listener_socket)
 
 
 
-int main()
+main()
 	{
 
 

@@ -3,7 +3,7 @@ README.txt for Assignment 1: TFTP Server
 
 Included Files:
 Makefile
-hw1finalversion.cpp
+hw1.cpp
 README.txt
 
 
